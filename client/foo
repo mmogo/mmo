@@ -1,0 +1,149 @@
+/etc/apt/trusted.gpg
+--------------------
+pub   dsa1024 2007-03-08 [SC]
+      4CCA 1EAF 950C EE4A B839  76DC A040 830F 7FAC 5991
+uid           [ unknown] Google, Inc. Linux Package Signing Key <linux-packages-keymaster@google.com>
+sub   elg2048 2007-03-08 [E]
+
+pub   rsa4096 2016-04-12 [SC]
+      EB4C 1BFD 4F04 2F6D DDCC  EC91 7721 F63B D38B 4796
+uid           [ unknown] Google Inc. (Linux Packages Signing Authority) <linux-packages-keymaster@google.com>
+sub   rsa4096 2016-04-12 [S] [expires: 2019-04-12]
+
+pub   rsa4096 2015-05-28 [SC] [expires: 2017-11-22]
+      BBEB DCB3 18AD 50EC 6865  0906 13B0 0F1F D2C1 9886
+uid           [ unknown] Spotify Public Repository Signing Key <operations@spotify.com>
+
+pub   rsa4096 2015-07-14 [SCEA]
+      5811 8E89 F3A9 1289 7C07  0ADB F762 2157 2C52 609D
+uid           [ unknown] Docker Release Tool (releasedocker) <docker@docker.com>
+
+pub   rsa4096 2014-01-13 [SCEA] [expires: 2019-01-12]
+      418A 7F2F B0E1 E6E7 EABF  6FE8 C2E7 3424 D590 97AB
+uid           [ unknown] packagecloud ops (production key) <ops@packagecloud.io>
+sub   rsa4096 2014-01-13 [SEA] [expires: 2019-01-12]
+
+pub   rsa4096 2016-02-18 [SCEA]
+      DB08 5A08 CA13 B8AC B917  E0F6 D938 EC0D 0386 51BD
+uid           [ unknown] https://packagecloud.io/slacktechnologies/slack (https://packagecloud.io/docs#gpg_signing) <support@packagecloud.io>
+sub   rsa4096 2016-02-18 [SEA]
+
+pub   rsa4096 2014-06-13 [SC]
+      9FD3 B784 BC1C 6FC3 1A8A  0A1C 1655 A0AB 6857 6280
+uid           [ unknown] NodeSource <gpg@nodesource.com>
+sub   rsa4096 2014-06-13 [E]
+
+pub   dsa1024 2010-12-23 [SC]
+      74F7 3584 25EE B617 6094  C884 E0F7 2778 C467 6186
+uid           [ unknown] PlayOnLinux Packaging (PlayOnLinux packaging keys) <packages@playonlinux.com>
+
+/etc/apt/trusted.gpg.d/alexlarsson_ubuntu_flatpak.gpg
+-----------------------------------------------------
+pub   rsa4096 2015-10-01 [SC]
+      6909 51F1 A4DE 0F90 5496  E8C6 C793 BFA2 FA57 7F07
+uid           [ unknown] Launchpad PPA for Alexander Larsson
+
+/etc/apt/trusted.gpg.d/colingille_ubuntu_freshlight.gpg
+-------------------------------------------------------
+pub   rsa1024 2010-12-30 [SC]
+      3764 AB96 1B29 2804 CD34  74FA EAE2 E8E7 CB7F 5C71
+uid           [ unknown] Launchpad PPA for Congelli501
+
+/etc/apt/trusted.gpg.d/damien-moore_ubuntu_codeblocks-stable.gpg
+----------------------------------------------------------------
+pub   rsa1024 2009-11-09 [SC]
+      993D 634E D0E1 A56F 786F  5B8F 87BB 07B4 C99E 40E1
+uid           [ unknown] Launchpad PPA for spillz
+
+/etc/apt/trusted.gpg.d/duh_ubuntu_golang.gpg
+--------------------------------------------
+pub   rsa1024 2010-07-27 [SC]
+      96F2 289F 8A78 8717 B47F  CDF5 5D96 9127 6048 0472
+uid           [ unknown] Launchpad Todd Vierling
+
+/etc/apt/trusted.gpg.d/kirillshkrogalev_ubuntu_ffmpeg-next.gpg
+--------------------------------------------------------------
+pub   rsa1024 2013-08-18 [SC]
+      1EC6 DBC9 AA41 BD34 B32C  C5A1 5C50 E96D 8EFE 5982
+uid           [ unknown] Launchpad PPA for Kyrill
+
+/etc/apt/trusted.gpg.d/microsoft.gpg
+------------------------------------
+pub   rsa2048 2015-10-28 [SC]
+      BC52 8686 B50D 79E3 39D3  721C EB3E 94AD BE12 29CF
+uid           [ unknown] Microsoft (Release signing) <gpgsecurity@microsoft.com>
+
+/etc/apt/trusted.gpg.d/nilarimogard_ubuntu_webupd8.gpg
+------------------------------------------------------
+pub   rsa1024 2010-01-20 [SC]
+      1DB2 9AFF F6C7 0907 B57A  A31F 531E E72F 4C9D 234C
+uid           [ unknown] Launchpad webupd8
+
+/etc/apt/trusted.gpg.d/openjdk-r_ubuntu_ppa.gpg
+-----------------------------------------------
+pub   rsa1024 2010-04-12 [SC]
+      DA1A 4A13 543B 4668 53BA  F164 EB9B 1D88 86F4 4E2A
+uid           [ unknown] Launchpad OpenJDK builds (all archs)
+
+/etc/apt/trusted.gpg.d/spotify-2015-05-28-D2C19886.gpg
+------------------------------------------------------
+pub   rsa4096 2015-05-28 [SC] [expires: 2017-11-22]
+      BBEB DCB3 18AD 50EC 6865  0906 13B0 0F1F D2C1 9886
+uid           [ unknown] Spotify Public Repository Signing Key <operations@spotify.com>
+
+/etc/apt/trusted.gpg.d/steam.gpg
+--------------------------------
+pub   rsa2048 2012-12-07 [SC]
+      BA18 16EF 8E75 005F CF5E  27A1 F24A EA9F B054 98B7
+uid           [ unknown] Valve Corporation <linux@steampowered.com>
+sub   rsa2048 2012-12-07 [E]
+
+/etc/apt/trusted.gpg.d/thomas_tsai_ubuntu_ubuntu-tuxboot.gpg
+------------------------------------------------------------
+pub   rsa1024 2012-05-02 [SC]
+      EE03 63EE 315C D6C9 42D3  9E65 87C9 C49A E9B2 4D7F
+uid           [ unknown] Launchpad PPA for Thomas Tsai
+
+/etc/apt/trusted.gpg.d/ubuntu-keyring-2004-archive.gpg
+------------------------------------------------------
+pub   dsa1024 2004-09-12 [SC]
+      6302 39CC 130E 1A7F D81A  27B1 4097 6EAF 437D 05B5
+uid           [ unknown] Ubuntu Archive Automatic Signing Key <ftpmaster@ubuntu.com>
+sub   elg2048 2004-09-12 [E]
+
+/etc/apt/trusted.gpg.d/ubuntu-keyring-2004-cdimage.gpg
+------------------------------------------------------
+pub   dsa1024 2004-12-30 [SC]
+      C598 6B4F 1257 FFA8 6632  CBA7 4618 1433 FBB7 5451
+uid           [ unknown] Ubuntu CD Image Automatic Signing Key <cdimage@ubuntu.com>
+
+/etc/apt/trusted.gpg.d/ubuntu-keyring-2012-archive.gpg
+------------------------------------------------------
+pub   rsa4096 2012-05-11 [SC]
+      790B C727 7767 219C 42C8  6F93 3B4F E6AC C0B2 1F32
+uid           [ unknown] Ubuntu Archive Automatic Signing Key (2012) <ftpmaster@ubuntu.com>
+
+/etc/apt/trusted.gpg.d/ubuntu-keyring-2012-cdimage.gpg
+------------------------------------------------------
+pub   rsa4096 2012-05-11 [SC]
+      8439 38DF 228D 22F7 B374  2BC0 D94A A3F0 EFE2 1092
+uid           [ unknown] Ubuntu CD Image Automatic Signing Key (2012) <cdimage@ubuntu.com>
+
+/etc/apt/trusted.gpg.d/ubuntu-lxc_ubuntu_lxd-stable.gpg
+-------------------------------------------------------
+pub   rsa1024 2011-07-25 [SC]
+      9376 3AC5 28C8 C525 6895  1BE0 D549 5F65 7635 B973
+uid           [ unknown] Launchpad PPA for Ubuntu LXC team
+
+/etc/apt/trusted.gpg.d/webupd8team_ubuntu_atom.gpg
+--------------------------------------------------
+pub   rsa1024 2010-05-04 [SC]
+      7B2C 3B08 89BF 5709 A105  D03A C251 8248 EEA1 4886
+uid           [ unknown] Launchpad VLC
+
+/etc/apt/trusted.gpg.d/wine_ubuntu_wine-builds.gpg
+--------------------------------------------------
+pub   rsa4096 2015-11-21 [SC]
+      B595 2509 2DF4 4DD0 CE1D  5D47 E61A 24DF 77C8 99CB
+uid           [ unknown] Launchpad PPA for Wine
+
