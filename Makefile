@@ -11,7 +11,7 @@ CLIENTSOURCES := $(shell find $(CLIENTDIR) $(SHAREDDIR) -name '*.go')
 SERVERSOURCES := $(shell find $(SERVERDIR) $(SHAREDDIR) -name '*.go')
 PATCHERSOURCES := $(shell find $(PATCHERDIR) $(SHAREDDIR) -name '*.go')
 
-all: $(OUTPUTDIR)/patcher $(OUTPUTDIR)/server $(OUTPUTDIR)/client.so
+all: $(OUTPUTDIR)/patcher $(OUTPUTDIR)/server $(OUTPUTDIR)/client
 
 $(OUTPUTDIR)/patcher: $(PATCHERSOURCES)
 	mkdir -p $(OUTPUTDIR)
@@ -23,10 +23,10 @@ $(OUTPUTDIR)/server: $(SERVERSOURCES)
 	cd $(SERVERDIR) && \
 	go build -o ../$(OUTPUTDIR)/server main.go
 
-$(OUTPUTDIR)/client.so: $(CLIENTSOURCES)
+$(OUTPUTDIR)/client: $(CLIENTSOURCES)
 	mkdir -p $(OUTPUTDIR)
 	cd $(CLIENTDIR) && \
-	go build -buildmode=plugin -o ../$(OUTPUTDIR)/client.so main.go
+	go build -o ../$(OUTPUTDIR)/client main.go
 
 $(ASSETDIR)/assets.go: $(ASSETS)
 	cd $(CLIENTDIR) && \

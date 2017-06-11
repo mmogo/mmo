@@ -15,3 +15,5 @@
 *.dll
 *.so
 bin
+client.bin
+testclient/

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/faiface/pixel"
 	"github.com/gorilla/websocket"
 	"github.com/ilackarms/_anything/shared"
@@ -37,7 +38,7 @@ func main() {
 	go func() { gameLoop(errc) }()
 	select {
 	case err := <-errc:
-		log.Fatal(err)
+		log.Fatal("error somewhere", err)
 	}
 }
 
@@ -46,16 +47,19 @@ func serveClient(errc chan error) error {
 	http.Handle("/connect", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		conn, err := (&websocket.Upgrader{}).Upgrade(w, req, nil)
 		if err != nil {
-			errc <- err
+			errc <- errors.New(fmt.Sprintf("failed to upgrade connection for %v", req), err)
 			return
 		}
 		if err := handleConnection(conn, errc); err != nil {
-			errc <- err
+			errc <- errors.New(fmt.Sprintf("error handling connection %v", req), err)
 			return
 		}
 	}))
 	log.Printf("serving client")
-	return http.ListenAndServe(":8080", http.DefaultServeMux)
+	if err := http.ListenAndServe(":8080", http.DefaultServeMux); err != nil {
+		return errors.New("failed listening on socket", err)
+	}
+	return nil
 }
 
 func handleConnection(conn *websocket.Conn, errc chan error) error {
@@ -93,7 +97,8 @@ func handlePlayer(id string, errc chan error) {
 		conn := player.Conn
 		msg, err := shared.GetMessage(conn)
 		if err != nil {
-			errc <- err
+			log.Print(errors.New(fmt.Sprintf("ERROR: getting message for player %s", id), err))
+			delete(players, id)
 			continue
 		}
 		switch {
@@ -112,8 +117,8 @@ func gameLoop(errc chan error) {
 		if dt > 1.0/ticksPerSecond {
 			dt = 0.0
 			if err := tick(); err != nil {
-				errc <- err
 				log.Printf("ERROR IN TICK: %v", err)
+				errc <- err
 			}
 		}
 	}

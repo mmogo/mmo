@@ -22,7 +22,8 @@ import (
 )
 
 func main() {
-	addr := flag.String("addr", "localhost:8081", "address for websocket connection")
+	addr := flag.String("addr", "localhost:8080", "address for websocket connection")
+	flag.Parse()
 	Main(*addr)
 }
 
