@@ -2,10 +2,15 @@ package main
 
 import (
 	_ "image/png"
-	"log"
 
 	"bytes"
 	"flag"
+	"image"
+	"log"
+	"net/url"
+	"os"
+	"time"
+
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/gorilla/websocket"
@@ -15,10 +20,7 @@ import (
 	"github.com/ilackarms/_anything/shared/types"
 	"github.com/ilackarms/pkg/errors"
 	"golang.org/x/image/colornames"
-	"image"
-	"net/url"
-	"os"
-	"time"
+	"sync"
 )
 
 func main() {
@@ -40,6 +42,7 @@ func Run(addr string) func() {
 }
 
 var id = os.Getenv("PLAYERID")
+var lock sync.RWMutex
 var players = make(map[string]*types.Player)
 var errc = make(chan error)
 
@@ -57,10 +60,12 @@ func run(addr string) error {
 		return err
 	}
 	go func() { handleConnection(conn) }()
+	lock.Lock()
 	players[id] = &types.Player{
 		ID:       id,
 		Position: pixel.ZV,
 	}
+	lock.Unlock()
 
 	cfg := pixelgl.WindowConfig{
 		Title:  "_anything",
@@ -129,11 +134,13 @@ func run(addr string) error {
 		mrManSprite = pixel.NewSprite(mrmanSheet, mrmanFrames[frame])
 
 		guysleySprite.Draw(win, pixel.IM.Rotated(pixel.ZV, angle).Moved(win.Bounds().Center()))
+		lock.RLock()
 		pos := players[id].Position
 		for _, player := range players {
 			mrManPos := pixel.IM.Moved(win.Bounds().Center().Add(pixel.V(player.Position.X, player.Position.Y)))
 			mrManSprite.Draw(win, mrManPos)
 		}
+		lock.RUnlock()
 		cam := pixel.IM.Moved(win.Bounds().Min.Sub(pixel.V(pos.X, pos.Y)))
 		win.SetMatrix(cam)
 		win.Update()
@@ -172,6 +179,8 @@ func handleConnection(conn *websocket.Conn) {
 		switch {
 		case msg.PlayerMoved != nil:
 			handlePlayerMoved(msg.PlayerMoved)
+		case msg.WorldState != nil:
+			handleWorldState(msg.WorldState)
 		}
 		return nil
 	}
@@ -185,6 +194,8 @@ func handleConnection(conn *websocket.Conn) {
 
 func handlePlayerMoved(moved *shared.PlayerMoved) {
 	id := moved.ID
+	lock.RLock()
+	defer lock.RUnlock()
 	player, ok := players[id]
 	if !ok {
 		player = &types.Player{
@@ -194,4 +205,12 @@ func handlePlayerMoved(moved *shared.PlayerMoved) {
 		players[id] = player
 	}
 	player.Position = moved.NewPosition
+}
+
+func handleWorldState(worldState *shared.WorldState) {
+	lock.Lock()
+	defer lock.Unlock()
+	for _, player := range worldState.Players {
+		players[player.ID] = player
+	}
 }

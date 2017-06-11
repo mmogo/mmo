@@ -2,6 +2,7 @@ package shared
 
 import (
 	"github.com/faiface/pixel"
+	"github.com/ilackarms/_anything/shared/types"
 )
 
 type Message struct {
@@ -9,6 +10,7 @@ type Message struct {
 	MoveRequest    *MoveRequest
 
 	PlayerMoved *PlayerMoved
+	WorldState  *WorldState
 }
 
 type ConnectRequest struct {
@@ -22,4 +24,8 @@ type MoveRequest struct {
 type PlayerMoved struct {
 	ID          string
 	NewPosition pixel.Vec
+}
+
+type WorldState struct {
+	Players []*types.Player
 }

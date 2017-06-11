@@ -5,8 +5,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+type ServerPlayer struct {
+	*Player
+	Conn *websocket.Conn
+}
+
 type Player struct {
 	ID       string
 	Position pixel.Vec
-	Conn     *websocket.Conn
 }

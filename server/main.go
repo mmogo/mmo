@@ -18,18 +18,23 @@ const (
 )
 
 var playersLock = sync.RWMutex{}
-var players = make(map[string]*types.Player)
+var players = make(map[string]*types.ServerPlayer)
 
 var updatesLock = sync.Mutex{}
 var updates = []*update{}
 
 type update struct {
 	notifyPlayerMoved *notifyPlayerMoved
+	notifyWorldState  *notifyWorldState
 }
 
 type notifyPlayerMoved struct {
 	id          string
 	newPosition pixel.Vec
+}
+
+type notifyWorldState struct {
+	targetID string
 }
 
 func main() {
@@ -81,12 +86,15 @@ func handleConnection(conn *websocket.Conn, errc chan error) error {
 	})
 	playersLock.Lock()
 	defer playersLock.Unlock()
-	players[id] = &types.Player{
-		ID:       id,
-		Position: pos,
-		Conn:     conn,
+	players[id] = &types.ServerPlayer{
+		Player: &types.Player{
+			ID:       id,
+			Position: pos,
+		},
+		Conn: conn,
 	}
 	queuePlayerMovedUpdate(id, pos)
+	queueSendWorldStateUpdate(id)
 	go handlePlayer(id, errc)
 	log.Printf("new connected player %s", id)
 	return nil
@@ -133,9 +141,14 @@ func tick() error {
 	defer updatesLock.Unlock()
 	processed := 0
 	for _, update := range updates {
-		if update.notifyPlayerMoved != nil {
+		switch {
+		case update.notifyPlayerMoved != nil:
 			id, newPos := update.notifyPlayerMoved.id, update.notifyPlayerMoved.newPosition
 			if err := broadcastPlayerMoved(id, newPos); err != nil {
+				return err
+			}
+		case update.notifyWorldState != nil:
+			if err := sendWorldState(update.notifyWorldState.targetID); err != nil {
 				return err
 			}
 		}
@@ -166,6 +179,25 @@ func broadcastPlayerMoved(id string, newPos pixel.Vec) error {
 	return nil
 }
 
+func sendWorldState(id string) error {
+	playersLock.RLock()
+	ps := make([]*types.Player, len(players))
+	i := 0
+	for _, player := range players {
+		ps[i] = &types.Player{
+			ID:       player.ID,
+			Position: player.Position,
+		}
+		i++
+	}
+	player, ok := players[id]
+	playersLock.RUnlock()
+	if !ok {
+		return errors.New("player "+id+" not found", nil)
+	}
+	return shared.SendMessage(&shared.Message{WorldState: &shared.WorldState{Players: ps}}, player.Conn)
+}
+
 func handleMoveRequest(id string, req *shared.MoveRequest) error {
 	playersLock.RLock()
 	defer playersLock.RUnlock()
@@ -186,6 +218,16 @@ func queuePlayerMovedUpdate(id string, pos pixel.Vec) {
 		notifyPlayerMoved: &notifyPlayerMoved{
 			id:          id,
 			newPosition: pos,
+		},
+	})
+}
+
+func queueSendWorldStateUpdate(id string) {
+	updatesLock.Lock()
+	defer updatesLock.Unlock()
+	updates = append(updates, &update{
+		notifyWorldState: &notifyWorldState{
+			targetID: id,
 		},
 	})
 }
