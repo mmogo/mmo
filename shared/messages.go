@@ -9,8 +9,9 @@ type Message struct {
 	ConnectRequest *ConnectRequest
 	MoveRequest    *MoveRequest
 
-	PlayerMoved *PlayerMoved
-	WorldState  *WorldState
+	PlayerMoved        *PlayerMoved
+	WorldState         *WorldState
+	PlayerDisconnected *PlayerDisconnected
 }
 
 type ConnectRequest struct {
@@ -28,4 +29,8 @@ type PlayerMoved struct {
 
 type WorldState struct {
 	Players []*types.Player
+}
+
+type PlayerDisconnected struct {
+	ID string
 }

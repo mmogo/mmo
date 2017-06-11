@@ -24,8 +24,9 @@ var updatesLock = sync.Mutex{}
 var updates = []*update{}
 
 type update struct {
-	notifyPlayerMoved *notifyPlayerMoved
-	notifyWorldState  *notifyWorldState
+	notifyPlayerMoved        *notifyPlayerMoved
+	notifyWorldState         *notifyWorldState
+	notifyPlayerDisconnected *notifyPlayerDisconnected
 }
 
 type notifyPlayerMoved struct {
@@ -35,6 +36,10 @@ type notifyPlayerMoved struct {
 
 type notifyWorldState struct {
 	targetID string
+}
+
+type notifyPlayerDisconnected struct {
+	id string
 }
 
 func main() {
@@ -55,7 +60,7 @@ func serveClient(errc chan error) error {
 			errc <- errors.New(fmt.Sprintf("failed to upgrade connection for %v", req), err)
 			return
 		}
-		if err := handleConnection(conn, errc); err != nil {
+		if err := handleConnection(conn); err != nil {
 			errc <- errors.New(fmt.Sprintf("error handling connection %v", req), err)
 			return
 		}
@@ -67,7 +72,7 @@ func serveClient(errc chan error) error {
 	return nil
 }
 
-func handleConnection(conn *websocket.Conn, errc chan error) error {
+func handleConnection(conn *websocket.Conn) error {
 	msg, err := shared.GetMessage(conn)
 	if err != nil {
 		return err
@@ -82,6 +87,7 @@ func handleConnection(conn *websocket.Conn, errc chan error) error {
 		playersLock.Lock()
 		defer playersLock.Unlock()
 		delete(players, id)
+		queueNotifyPlayerDisconnected(id)
 		return nil
 	})
 	playersLock.Lock()
@@ -95,19 +101,20 @@ func handleConnection(conn *websocket.Conn, errc chan error) error {
 	}
 	queuePlayerMovedUpdate(id, pos)
 	queueSendWorldStateUpdate(id)
-	go handlePlayer(id, errc)
+	go handlePlayer(id)
 	log.Printf("new connected player %s", id)
 	return nil
 }
 
-func handlePlayer(id string, errc chan error) {
+func handlePlayer(id string) {
 	for players[id] != nil {
 		player := players[id]
 		conn := player.Conn
 		msg, err := shared.GetMessage(conn)
 		if err != nil {
-			log.Print(errors.New(fmt.Sprintf("ERROR: getting message for player %s", id), err))
+			log.Print(errors.New(fmt.Sprintf("Client disconnected: (failed getting message for player %s)", id), err))
 			delete(players, id)
+			queueNotifyPlayerDisconnected(id)
 			continue
 		}
 		switch {
@@ -151,6 +158,10 @@ func tick() error {
 			if err := sendWorldState(update.notifyWorldState.targetID); err != nil {
 				return err
 			}
+		case update.notifyPlayerDisconnected != nil:
+			if err := broadcastPlayerDisconnected(update.notifyPlayerDisconnected.id); err != nil {
+				return err
+			}
 		}
 		processed++
 	}
@@ -159,24 +170,13 @@ func tick() error {
 }
 
 func broadcastPlayerMoved(id string, newPos pixel.Vec) error {
-	playerMoved := shared.Message{
+	playerMoved := &shared.Message{
 		PlayerMoved: &shared.PlayerMoved{
 			ID:          id,
 			NewPosition: newPos,
 		},
 	}
-	data, err := shared.Encode(playerMoved)
-	if err != nil {
-		return err
-	}
-	playersLock.RLock()
-	defer playersLock.RUnlock()
-	for _, player := range players {
-		if err := shared.SendRaw(data, player.Conn); err != nil {
-			return err
-		}
-	}
-	return nil
+	return broadcast(playerMoved)
 }
 
 func sendWorldState(id string) error {
@@ -196,6 +196,26 @@ func sendWorldState(id string) error {
 		return errors.New("player "+id+" not found", nil)
 	}
 	return shared.SendMessage(&shared.Message{WorldState: &shared.WorldState{Players: ps}}, player.Conn)
+}
+
+func broadcastPlayerDisconnected(id string) error {
+	playerDisconnected := &shared.Message{PlayerDisconnected: &shared.PlayerDisconnected{ID: id}}
+	return broadcast(playerDisconnected)
+}
+
+func broadcast(msg *shared.Message) error {
+	data, err := shared.Encode(msg)
+	if err != nil {
+		return err
+	}
+	playersLock.RLock()
+	defer playersLock.RUnlock()
+	for _, player := range players {
+		if err := shared.SendRaw(data, player.Conn); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func handleMoveRequest(id string, req *shared.MoveRequest) error {
@@ -228,6 +248,16 @@ func queueSendWorldStateUpdate(id string) {
 	updates = append(updates, &update{
 		notifyWorldState: &notifyWorldState{
 			targetID: id,
+		},
+	})
+}
+
+func queueNotifyPlayerDisconnected(id string) {
+	updatesLock.Lock()
+	defer updatesLock.Unlock()
+	updates = append(updates, &update{
+		notifyPlayerDisconnected: &notifyPlayerDisconnected{
+			id: id,
 		},
 	})
 }

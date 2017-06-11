@@ -181,6 +181,8 @@ func handleConnection(conn *websocket.Conn) {
 			handlePlayerMoved(msg.PlayerMoved)
 		case msg.WorldState != nil:
 			handleWorldState(msg.WorldState)
+		case msg.PlayerDisconnected != nil:
+			handlePlayerDisconnected(msg.PlayerDisconnected)
 		}
 		return nil
 	}
@@ -213,4 +215,10 @@ func handleWorldState(worldState *shared.WorldState) {
 	for _, player := range worldState.Players {
 		players[player.ID] = player
 	}
+}
+
+func handlePlayerDisconnected(disconnected *shared.PlayerDisconnected) {
+	lock.Lock()
+	defer lock.Unlock()
+	delete(players, disconnected.ID)
 }
