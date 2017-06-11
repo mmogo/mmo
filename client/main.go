@@ -4,16 +4,21 @@ import (
 	_ "image/png"
 	"log"
 
+	"bytes"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
+	"github.com/ilackarms/_anything/client/assets"
 	"github.com/ilackarms/pkg/errors"
 	"golang.org/x/image/colornames"
 	"image"
-	"os"
 	"time"
 )
 
 func main() {
+	Main()
+}
+
+func Main() {
 	pixelgl.Run(Run)
 }
 
@@ -60,20 +65,20 @@ func run() error {
 	vel := 5.00
 
 	for !win.Closed() {
-		win.Clear(colornames.Chocolate)
+		win.Clear(colornames.Darkblue)
 		dt := time.Since(last).Seconds()
 		last = time.Now()
 
-		if win.Pressed(pixelgl.KeyLeft) {
+		if win.Pressed(pixelgl.KeyA) {
 			x -= vel
 		}
-		if win.Pressed(pixelgl.KeyRight) {
+		if win.Pressed(pixelgl.KeyD) {
 			x += vel
 		}
-		if win.Pressed(pixelgl.KeyUp) {
+		if win.Pressed(pixelgl.KeyW) {
 			y += vel
 		}
-		if win.Pressed(pixelgl.KeyDown) {
+		if win.Pressed(pixelgl.KeyS) {
 			y -= vel
 		}
 
@@ -92,11 +97,11 @@ func run() error {
 }
 
 func loadPicture(path string) (pixel.Picture, error) {
-	file, err := os.Open(path)
+	contents, err := assets.Asset(path)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	file := bytes.NewBuffer(contents)
 	img, _, err := image.Decode(file)
 	if err != nil {
 		return nil, err
