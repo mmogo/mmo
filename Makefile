@@ -1,34 +1,36 @@
 SOURCEDIR=.
+SHAREDDIR=$(SOURCEDIR)/shared
 CLIENTDIR=$(SOURCEDIR)/client
 SERVERDIR=$(SOURCEDIR)/server
 PATCHERDIR=$(SOURCEDIR)/patcher
 ASSETDIR=$(CLIENTDIR)/assets
 ASSETS := $(shell find $(SOURCEDIR)/client/assets -name assets.go -prune -o -print)
-SOURCES := $(shell find $(SOURCEDIR) -name '*.go')
+OUTPUTDIR := $(SOURCEDIR)/bin
 
-.PHONY: all
+CLIENTSOURCES := $(shell find $(CLIENTDIR) $(SHAREDDIR) -name '*.go')
+SERVERSOURCES := $(shell find $(SERVERDIR) $(SHAREDDIR) -name '*.go')
+PATCHERSOURCES := $(shell find $(PATCHERDIR) $(SHAREDDIR) -name '*.go')
 
-all: bin/patcher bin/server bin/client.so
+all: $(OUTPUTDIR)/patcher $(OUTPUTDIR)/server $(OUTPUTDIR)/client.so
 
-bin/patcher: $(SOURCES)
-	pushd $(PATCHERDIR)
-	go build -o ../bin/patcher main.go
-	popd
+$(OUTPUTDIR)/patcher: $(PATCHERSOURCES)
+	mkdir -p $(OUTPUTDIR)
+	cd $(PATCHERDIR) && \
+	go build -o ../$(OUTPUTDIR)/patcher main.go
 
-bin/server: $(SOURCES)
-	pushd $(SERVERDIR)
-	go build -o ../bin/server main.go
-	popd
+$(OUTPUTDIR)/server: $(SERVERSOURCES)
+	mkdir -p $(OUTPUTDIR)
+	cd $(SERVERDIR) && \
+	go build -o ../$(OUTPUTDIR)/server main.go
 
-bin/client.so: $(SOURCES)
-	pushd $(CLIENTDIR)
-	go build -buildmode=plugin -o ../bin/client.so main.go
-	popd
+$(OUTPUTDIR)/client.so: $(CLIENTSOURCES)
+	mkdir -p $(OUTPUTDIR)
+	cd $(CLIENTDIR) && \
+	go build -buildmode=plugin -o ../$(OUTPUTDIR)/client.so main.go
 
 $(ASSETDIR)/assets.go: $(ASSETS)
-	pushd $(CLIENTDIR)
+	cd $(CLIENTDIR) && \
 	go-bindata -o assets/assets.go -pkg assets -prefix assets/ assets/
-	popd
 
 .PHONY: clean
 	rm -rf bin
