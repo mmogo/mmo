@@ -43,10 +43,8 @@ var players = make(map[string]*types.Player)
 var errc = make(chan error)
 
 func run(addr string) error {
-	u, err := url.Parse(addr)
-	if err != nil {
-		return err
-	}
+	log.Printf("connecting to %s", addr)
+	u := url.URL{Scheme: "ws", Host: addr, Path: "/connect"}
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		return err
