@@ -41,6 +41,9 @@ func main() {
 		log.Fatal(err)
 	}
 	cmd := exec.Command(filepath.Join(cwd, clientBin.Name()), "--addr", *addr)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
 	if err := cmd.Run(); err != nil {
 		log.Fatal(err)
 	}

@@ -184,12 +184,14 @@ func handleConnection(conn *websocket.Conn) {
 }
 
 func handlePlayerMoved(moved *shared.PlayerMoved) {
-	player, ok := players[moved.ID]
+	id := moved.ID
+	player, ok := players[id]
 	if !ok {
 		player = &types.Player{
-			ID:       moved.ID,
+			ID:       id,
 			Position: moved.NewPosition,
 		}
+		players[id] = player
 	}
 	player.Position = moved.NewPosition
 }
