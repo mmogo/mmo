@@ -10,10 +10,14 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/gorilla/websocket"
 	"github.com/ilackarms/_anything/client/assets"
+	"github.com/ilackarms/_anything/shared"
+	"github.com/ilackarms/_anything/shared/constants"
+	"github.com/ilackarms/_anything/shared/types"
 	"github.com/ilackarms/pkg/errors"
 	"golang.org/x/image/colornames"
 	"image"
 	"net/url"
+	"os"
 	"time"
 )
 
@@ -34,6 +38,10 @@ func Run(addr string) func() {
 	}
 }
 
+var id = os.Getenv("PLAYERID")
+var players = make(map[string]*types.Player)
+var errc = make(chan error)
+
 func run(addr string) error {
 	u, err := url.Parse(addr)
 	if err != nil {
@@ -43,6 +51,18 @@ func run(addr string) error {
 	if err != nil {
 		return err
 	}
+	connectionRequest := &shared.ConnectRequest{
+		ID: os.Getenv("PLAYERID"),
+	}
+	if err := shared.SendMessage(&shared.Message{ConnectRequest: connectionRequest}, conn); err != nil {
+		return err
+	}
+	go func() { handleConnection(conn) }()
+	players[id] = &types.Player{
+		ID:       id,
+		Position: pixel.ZV,
+	}
+
 	cfg := pixelgl.WindowConfig{
 		Title:  "_anything",
 		Bounds: pixel.R(0, 0, 800, 600),
@@ -81,20 +101,25 @@ func run(addr string) error {
 		dt := time.Since(last).Seconds()
 		last = time.Now()
 
-		if err := conn.WriteMessage(websocket.BinaryMessage); err != nil {
-			return err
-		}
 		if win.Pressed(pixelgl.KeyA) {
-			x -= vel
+			if err := requestMove(constants.Directions.Left, conn); err != nil {
+				return err
+			}
 		}
 		if win.Pressed(pixelgl.KeyD) {
-			x += vel
+			if err := requestMove(constants.Directions.Right, conn); err != nil {
+				return err
+			}
 		}
 		if win.Pressed(pixelgl.KeyW) {
-			y += vel
+			if err := requestMove(constants.Directions.Up, conn); err != nil {
+				return err
+			}
 		}
 		if win.Pressed(pixelgl.KeyS) {
-			y -= vel
+			if err := requestMove(constants.Directions.Down, conn); err != nil {
+				return err
+			}
 		}
 
 		angle += 3 * dt
@@ -105,9 +130,12 @@ func run(addr string) error {
 		mrManSprite = pixel.NewSprite(mrmanSheet, mrmanFrames[frame])
 
 		guysleySprite.Draw(win, pixel.IM.Rotated(pixel.ZV, angle).Moved(win.Bounds().Center()))
-		mrManPos := pixel.IM.Moved(win.Bounds().Center().Add(pixel.V(x, y)))
-		mrManSprite.Draw(win, mrManPos)
-		cam := pixel.IM.Moved(win.Bounds().Min.Sub(pixel.V(x, y)))
+		pos := players[id].Position
+		for _, player := range players {
+			mrManPos := pixel.IM.Moved(win.Bounds().Center().Add(pixel.V(player.Position.X, player.Position.Y)))
+			mrManSprite.Draw(win, mrManPos)
+		}
+		cam := pixel.IM.Moved(win.Bounds().Min.Sub(pixel.V(pos.X, pos.Y)))
 		win.SetMatrix(cam)
 		win.Update()
 	}
@@ -125,4 +153,44 @@ func loadPicture(path string) (pixel.Picture, error) {
 		return nil, err
 	}
 	return pixel.PictureDataFromImage(img), nil
+}
+
+func requestMove(direction pixel.Vec, conn *websocket.Conn) error {
+	msg := &shared.Message{
+		MoveRequest: &shared.MoveRequest{
+			Direction: direction,
+		},
+	}
+	return shared.SendMessage(msg, conn)
+}
+
+func handleConnection(conn *websocket.Conn) {
+	loop := func() error {
+		msg, err := shared.GetMessage(conn)
+		if err != nil {
+			return err
+		}
+		switch {
+		case msg.PlayerMoved != nil:
+			handlePlayerMoved(msg.PlayerMoved)
+		}
+		return nil
+	}
+	for {
+		if err := loop(); err != nil {
+			errc <- err
+			continue
+		}
+	}
+}
+
+func handlePlayerMoved(moved *shared.PlayerMoved) {
+	player, ok := players[moved.ID]
+	if !ok {
+		player = &types.Player{
+			ID:       moved.ID,
+			Position: moved.NewPosition,
+		}
+	}
+	player.Position = moved.NewPosition
 }

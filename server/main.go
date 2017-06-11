@@ -4,6 +4,7 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/gorilla/websocket"
 	"github.com/ilackarms/_anything/shared"
+	"github.com/ilackarms/_anything/shared/types"
 	"github.com/ilackarms/pkg/errors"
 	"log"
 	"net/http"
@@ -16,16 +17,10 @@ const (
 )
 
 var playersLock = sync.RWMutex{}
-var players = make(map[string]*player)
+var players = make(map[string]*types.Player)
 
 var updatesLock = sync.Mutex{}
 var updates = []*update{}
-
-type player struct {
-	id       string
-	position pixel.Vec
-	conn     *websocket.Conn
-}
 
 type update struct {
 	notifyPlayerMoved *notifyPlayerMoved
@@ -82,10 +77,10 @@ func handleConnection(conn *websocket.Conn, errc chan error) error {
 	})
 	playersLock.Lock()
 	defer playersLock.Unlock()
-	players[id] = &player{
-		id:       id,
-		position: pos,
-		conn:     conn,
+	players[id] = &types.Player{
+		ID:       id,
+		Position: pos,
+		Conn:     conn,
 	}
 	go handlePlayer(id, errc)
 	log.Printf("new connected player %s", id)
@@ -95,7 +90,7 @@ func handleConnection(conn *websocket.Conn, errc chan error) error {
 func handlePlayer(id string, errc chan error) {
 	for players[id] != nil {
 		player := players[id]
-		conn := player.conn
+		conn := player.Conn
 		msg, err := shared.GetMessage(conn)
 		if err != nil {
 			errc <- err
@@ -155,7 +150,7 @@ func broadcastPlayerMoved(id string, newPos pixel.Vec) error {
 	playersLock.RLock()
 	defer playersLock.RUnlock()
 	for _, player := range players {
-		if err := shared.SendRaw(data, player.conn); err != nil {
+		if err := shared.SendRaw(data, player.Conn); err != nil {
 			return err
 		}
 	}
@@ -170,13 +165,13 @@ func handleMoveRequest(id string, req *shared.MoveRequest) error {
 		return errors.New("requesting player "+id+" is nil??", nil)
 	}
 
-	player.position = player.position.Add(req.Direction)
+	player.Position = player.Position.Add(req.Direction)
 	updatesLock.Lock()
 	defer updatesLock.Unlock()
 	updates = append(updates, &update{
 		notifyPlayerMoved: &notifyPlayerMoved{
 			id:          id,
-			newPosition: player.position,
+			newPosition: player.Position,
 		},
 	})
 	return nil
