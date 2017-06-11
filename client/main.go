@@ -90,7 +90,10 @@ func run() error {
 		mrManSprite = pixel.NewSprite(mrmanSheet, mrmanFrames[frame])
 
 		guysleySprite.Draw(win, pixel.IM.Rotated(pixel.ZV, angle).Moved(win.Bounds().Center()))
-		mrManSprite.Draw(win, pixel.IM.Scaled(pixel.ZV, 1).Moved(win.Bounds().Center().Add(pixel.V(x, y))))
+		mrManPos := pixel.IM.Moved(win.Bounds().Center().Add(pixel.V(x, y)))
+		mrManSprite.Draw(win, mrManPos)
+		cam := pixel.IM.Moved(win.Bounds().Min.Sub(pixel.V(x, y)))
+		win.SetMatrix(cam)
 		win.Update()
 	}
 	return nil
