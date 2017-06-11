@@ -86,6 +86,7 @@ func handleConnection(conn *websocket.Conn, errc chan error) error {
 		Position: pos,
 		Conn:     conn,
 	}
+	queuePlayerMovedUpdate(id, pos)
 	go handlePlayer(id, errc)
 	log.Printf("new connected player %s", id)
 	return nil
@@ -120,6 +121,9 @@ func gameLoop(errc chan error) {
 				log.Printf("ERROR IN TICK: %v", err)
 				errc <- err
 			}
+		} else {
+			//prevent locking goroutines
+			time.Sleep(time.Millisecond)
 		}
 	}
 }
@@ -171,13 +175,17 @@ func handleMoveRequest(id string, req *shared.MoveRequest) error {
 	}
 
 	player.Position = player.Position.Add(req.Direction)
+	queuePlayerMovedUpdate(id, player.Position)
+	return nil
+}
+
+func queuePlayerMovedUpdate(id string, pos pixel.Vec) {
 	updatesLock.Lock()
 	defer updatesLock.Unlock()
 	updates = append(updates, &update{
 		notifyPlayerMoved: &notifyPlayerMoved{
 			id:          id,
-			newPosition: player.Position,
+			newPosition: pos,
 		},
 	})
-	return nil
 }
