@@ -5,30 +5,44 @@ import (
 	"log"
 
 	"bytes"
+	"flag"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
+	"github.com/gorilla/websocket"
 	"github.com/ilackarms/_anything/client/assets"
 	"github.com/ilackarms/pkg/errors"
 	"golang.org/x/image/colornames"
 	"image"
+	"net/url"
 	"time"
 )
 
 func main() {
-	Main()
+	addr := flag.String("addr", "localhost:8081", "address for websocket connection")
+	Main(*addr)
 }
 
-func Main() {
-	pixelgl.Run(Run)
+func Main(addr string) {
+	pixelgl.Run(Run(addr))
 }
 
-func Run() {
-	if err := run(); err != nil {
-		log.Fatal(err)
+func Run(addr string) func() {
+	return func() {
+		if err := run(addr); err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
-func run() error {
+func run(addr string) error {
+	u, err := url.Parse(addr)
+	if err != nil {
+		return err
+	}
+	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	if err != nil {
+		return err
+	}
 	cfg := pixelgl.WindowConfig{
 		Title:  "_anything",
 		Bounds: pixel.R(0, 0, 800, 600),
@@ -61,14 +75,15 @@ func run() error {
 
 	angle := 0.0
 	last := time.Now()
-	x, y := 0.0, 0.0
-	vel := 5.00
 
 	for !win.Closed() {
 		win.Clear(colornames.Darkblue)
 		dt := time.Since(last).Seconds()
 		last = time.Now()
 
+		if err := conn.WriteMessage(websocket.BinaryMessage); err != nil {
+			return err
+		}
 		if win.Pressed(pixelgl.KeyA) {
 			x -= vel
 		}
