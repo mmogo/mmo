@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/layer-x/layerx-commons/lxhttpclient"
+	"runtime"
 )
 
 var addr = flag.String("addr", "localhost:8080", "http service address")
@@ -17,7 +18,11 @@ func main() {
 	flag.Parse()
 
 	//TODO: separtae by platform / architecture (in request)
-	res, err := lxhttpclient.GetAsync(*addr, "/client/client", nil)
+	clientName := "client"
+	if runtime.GOOS == "windows" {
+		clientName = "client.exe"
+	}
+	res, err := lxhttpclient.GetAsync(*addr, "/client/"+clientName, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
