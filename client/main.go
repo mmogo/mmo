@@ -147,8 +147,9 @@ func run(addr string) error {
 			playerText := text.New(pixel.ZV, atlas)
 			playerText.Clear()
 			playerText.Dot = playerText.Orig
-			fmt.Fprintf(playerText, "hi i'm player %v\n", id)
-			playerText.Draw(win, mrManPos.Moved(pixel.V(playerText.Bounds().Size().X/-2, playerText.Bounds().Size().Y*2)))
+			playerText.Dot.X -= playerText.BoundsOf(fmt.Sprintf("hi i'm player %v", id)).W() / 2
+			fmt.Fprintf(playerText, "hi i'm player %v", id)
+			playerText.Draw(win, mrManPos.Moved(pixel.V(0, playerText.Bounds().H()*2)))
 		}
 		lock.RUnlock()
 
