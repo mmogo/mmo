@@ -39,7 +39,7 @@ $(ASSETDIR)/assets.go: $(ASSETS)
 $(OUTPUTDIR)/client-windows-4.0-amd64.exe: $(CLIENTSOURCES)
 	xgo -dest=bin -targets=windows/amd64 -pkg ./client .
 
-$(OUTPUTDIR)/patcher-windows-4.0-amd64.exe: $(CLIENTSOURCES)
+$(OUTPUTDIR)/patcher-windows-4.0-amd64.exe: $(PATCHERSOURCES)
 	xgo -dest=bin -targets=windows/amd64 -pkg ./patcher .
 
 .PHONY: clean
