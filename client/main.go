@@ -143,13 +143,14 @@ func run(addr string) error {
 		pos := players[id].Position
 		for _, player := range players {
 			mrManPos := pixel.IM.Moved(win.Bounds().Center().Add(pixel.V(player.Position.X, player.Position.Y)))
-			mrManSprite.Draw(win, mrManPos)
+			//mrManSprite.Draw(win, mrManPos)
+			mrManSprite.DrawColorMask(win, mrManPos, colornames.Yellowgreen)
 			playerText := text.New(pixel.ZV, atlas)
 			playerText.Clear()
 			playerText.Dot = playerText.Orig
 			playerText.Dot.X -= playerText.BoundsOf(fmt.Sprintf("hi i'm player %v", id)).W() / 2
-			fmt.Fprintf(playerText, "hi i'm player %v", id)
-			playerText.Draw(win, mrManPos.Moved(pixel.V(0, playerText.Bounds().H()*2)))
+			fmt.Fprintf(playerText, "hi i'm player %v", player.ID)
+			playerText.DrawColorMask(win, mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20)), colornames.Yellowgreen)
 		}
 		lock.RUnlock()
 
