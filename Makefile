@@ -15,7 +15,9 @@ all: $(OUTPUTDIR)/patcher \
 	 $(OUTPUTDIR)/server \
 	 $(OUTPUTDIR)/client \
 	 $(OUTPUTDIR)/client-windows-4.0-amd64.exe \
-	 $(OUTPUTDIR)/patcher-windows-4.0-amd64.exe
+	 $(OUTPUTDIR)/patcher-windows-4.0-amd64.exe \
+	 $(OUTPUTDIR)/client-darwin \
+	 $(OUTPUTDIR)/patcher-darwin
 
 $(OUTPUTDIR)/patcher: $(PATCHERSOURCES)
 	mkdir -p $(OUTPUTDIR)
@@ -41,6 +43,12 @@ $(OUTPUTDIR)/client-windows-4.0-amd64.exe: $(CLIENTSOURCES)
 
 $(OUTPUTDIR)/patcher-windows-4.0-amd64.exe: $(PATCHERSOURCES)
 	xgo -dest=bin -targets=windows/amd64 -pkg ./patcher .
+
+$(OUTPUTDIR)/client-darwin-10.6-amd64: $(CLIENTSOURCES)
+	xgo -dest=bin -targets=darwin/amd64 -pkg ./client .
+
+$(OUTPUTDIR)/patcher-darwin-10.6-amd64: $(PATCHERSOURCES)
+	xgo -dest=bin -targets=darwin/amd64 -pkg ./patcher .
 
 .PHONY: clean
 	rm -rf bin
