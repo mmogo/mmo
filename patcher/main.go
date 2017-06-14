@@ -20,6 +20,13 @@ var conffile = flag.String("conf", "login.txt", "login config file")
 func main() {
 	flag.Parse()
 
+	logFile, err := os.Create("game.log")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	logger := log.New(logFile, "", log.LstdFlags)
+
 	//override addr with login.txt
 	confdata, err := ioutil.ReadFile(*conffile)
 	if err == nil {
@@ -40,34 +47,33 @@ func main() {
 	}
 	res, err := lxhttpclient.GetAsync(*addr, "/client/"+clientName, nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	clientBin, err := os.Create("client.bin")
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	if err := chmod(clientBin, 0755); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	_, err = io.Copy(clientBin, res.Body)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	defer res.Body.Close()
 	if err := clientBin.Close(); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	cmd := exec.Command(filepath.Join(cwd, clientBin.Name()), "--addr", *addr)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
 	if err := cmd.Run(); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 }
