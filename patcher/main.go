@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/hectane/go-acl"
 	"github.com/layer-x/layerx-commons/lxhttpclient"
 	"runtime"
 )
@@ -34,8 +35,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := clientBin.Chmod(0755); err != nil {
-		log.Fatal(err)
+	if runtime.GOOS == "windows" {
+		if err := acl.Chmod(clientBin.Name(), 0755); err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		if err := clientBin.Chmod(0755); err != nil {
+			log.Fatal(err)
+		}
 	}
 	_, err = io.Copy(clientBin, res.Body)
 	if err != nil {
