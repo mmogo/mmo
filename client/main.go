@@ -11,8 +11,10 @@ import (
 	"os"
 	"time"
 
+	"fmt"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
+	"github.com/faiface/pixel/text"
 	"github.com/gorilla/websocket"
 	"github.com/ilackarms/_anything/client/assets"
 	"github.com/ilackarms/_anything/shared"
@@ -20,6 +22,7 @@ import (
 	"github.com/ilackarms/_anything/shared/types"
 	"github.com/ilackarms/pkg/errors"
 	"golang.org/x/image/colornames"
+	"golang.org/x/image/font/basicfont"
 	"sync"
 )
 
@@ -100,6 +103,8 @@ func run(addr string) error {
 	angle := 0.0
 	last := time.Now()
 
+	atlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
+
 	for !win.Closed() {
 		win.Clear(colornames.Darkblue)
 		dt := time.Since(last).Seconds()
@@ -139,8 +144,15 @@ func run(addr string) error {
 		for _, player := range players {
 			mrManPos := pixel.IM.Moved(win.Bounds().Center().Add(pixel.V(player.Position.X, player.Position.Y)))
 			mrManSprite.Draw(win, mrManPos)
+			playerText := text.New(pixel.ZV, atlas)
+			playerText.Clear()
+			playerText.Dot = playerText.Orig
+			fmt.Fprintf(playerText, "hi i'm player %v\n", id)
+			playerText.Draw(win, mrManPos.Moved(pixel.V(playerText.Bounds().Size().X/-2, playerText.Bounds().Size().Y*2)))
 		}
 		lock.RUnlock()
+
+		//playerText.Clear()
 		cam := pixel.IM.Moved(win.Bounds().Min.Sub(pixel.V(pos.X, pos.Y)))
 		win.SetMatrix(cam)
 		win.Update()
