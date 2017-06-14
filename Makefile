@@ -7,32 +7,41 @@ ASSETDIR=$(CLIENTDIR)/assets
 ASSETS := $(shell find $(SOURCEDIR)/client/assets -name assets.go -prune -o -print)
 OUTPUTDIR := $(SOURCEDIR)/bin
 
+SERVERADDR := 710107ec.ngrok.io
+
 CLIENTSOURCES := $(shell find $(CLIENTDIR) $(SHAREDDIR) -name '*.go')
 SERVERSOURCES := $(shell find $(SERVERDIR) $(SHAREDDIR) -name '*.go')
 PATCHERSOURCES := $(shell find $(PATCHERDIR) $(SHAREDDIR) -name '*.go')
 
-all: $(OUTPUTDIR)/patcher \
-	 $(OUTPUTDIR)/server \
-	 $(OUTPUTDIR)/client \
-	 $(OUTPUTDIR)/client-windows-4.0-amd64.exe \
-	 $(OUTPUTDIR)/patcher-windows-4.0-amd64.exe \
-	 $(OUTPUTDIR)/client-darwin \
-	 $(OUTPUTDIR)/patcher-darwin
+all: linux windows darwin
 
-$(OUTPUTDIR)/patcher: $(PATCHERSOURCES)
+linux: $(OUTPUTDIR)/patcher-linux-amd64 \
+       $(OUTPUTDIR)/server-linux-amd64 \
+       $(OUTPUTDIR)/client-linux-amd64 \
+       $(OUTPUTDIR)/login.txt
+
+windows: $(OUTPUTDIR)/client-windows-4.0-amd64.exe \
+         $(OUTPUTDIR)/patcher-windows-4.0-amd64.exe	\
+         $(OUTPUTDIR)/login.txt
+
+darwin: $(OUTPUTDIR)/client-darwin-10.6-amd64 \
+	    $(OUTPUTDIR)/patcher-darwin-10.6-amd64 \
+		$(OUTPUTDIR)/login.txt
+
+$(OUTPUTDIR)/patcher-linux-amd64: $(PATCHERSOURCES)
 	mkdir -p $(OUTPUTDIR)
 	cd $(PATCHERDIR) && \
-	go build -o ../$(OUTPUTDIR)/patcher .
+	go build -o ../$@ .
 
-$(OUTPUTDIR)/server: $(SERVERSOURCES)
+$(OUTPUTDIR)/server-linux-amd64: $(SERVERSOURCES)
 	mkdir -p $(OUTPUTDIR)
 	cd $(SERVERDIR) && \
-	go build -o ../$(OUTPUTDIR)/server .
+	go build -o ../$@ .
 
-$(OUTPUTDIR)/client: $(CLIENTSOURCES)
+$(OUTPUTDIR)/client-linux-amd64: $(CLIENTSOURCES)
 	mkdir -p $(OUTPUTDIR)
 	cd $(CLIENTDIR) && \
-	go build -o ../$(OUTPUTDIR)/client .
+	go build -o ../$@ .
 
 $(ASSETDIR)/assets.go: $(ASSETS)
 	cd $(CLIENTDIR) && \
@@ -49,6 +58,9 @@ $(OUTPUTDIR)/client-darwin-10.6-amd64: $(CLIENTSOURCES)
 
 $(OUTPUTDIR)/patcher-darwin-10.6-amd64: $(PATCHERSOURCES)
 	xgo -dest=bin -targets=darwin/amd64 -pkg ./patcher .
+
+$(OUTPUTDIR)/login.txt:
+	echo "server=$(SERVERADDR)" > $@
 
 .PHONY: clean
 	rm -rf bin
