@@ -41,11 +41,16 @@ func main() {
 	}
 
 	//TODO: separtae by platform / architecture (in request)
-	clientName := "client"
-	if runtime.GOOS == "windows" {
+	var clientName string
+	switch runtime.GOOS {
+	case "windows":
 		clientName = "client-windows-4.0-amd64.exe"
+	case "darwin":
+		clientName = "client-darwin-10.6-amd64"
+	default:
+		clientName = "client-linux-amd64"
 	}
-	res, err := lxhttpclient.GetAsync(*addr, "/client/"+clientName, nil)
+	res, err := lxhttpclient.GetAsync(*addr, "/"+clientName, nil)
 	if err != nil {
 		logger.Fatal(err)
 	}

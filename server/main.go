@@ -53,7 +53,7 @@ func main() {
 }
 
 func serveClient(errc chan error) error {
-	http.Handle("/client/", http.StripPrefix("/client/", http.FileServer(http.Dir("."))))
+	http.Handle("/", http.FileServer(http.Dir(".")))
 	http.Handle("/connect", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		conn, err := (&websocket.Upgrader{}).Upgrade(w, req, nil)
 		if err != nil {
