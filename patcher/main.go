@@ -3,15 +3,15 @@ package main
 import (
 	"flag"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
-
-	"github.com/layer-x/layerx-commons/lxhttpclient"
-	"io/ioutil"
 	"runtime"
 	"strings"
+
+	"github.com/layer-x/layerx-commons/lxhttpclient"
 )
 
 var addr = flag.String("addr", "localhost:8080", "http service address")
@@ -25,7 +25,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	logger := log.New(logFile, "", log.LstdFlags)
+	out := io.MultiWriter(logFile, os.Stdout)
+
+	logger := log.New(out, "", log.LstdFlags)
 
 	//override addr with login.txt
 	confdata, err := ioutil.ReadFile(*conffile)
@@ -40,7 +42,6 @@ func main() {
 		}
 	}
 
-	//TODO: separtae by platform / architecture (in request)
 	var clientName string
 	switch runtime.GOOS {
 	case "windows":
@@ -76,8 +77,8 @@ func main() {
 		logger.Fatal(err)
 	}
 	cmd := exec.Command(filepath.Join(cwd, clientBin.Name()), "--addr", *addr)
-	cmd.Stdout = logFile
-	cmd.Stderr = logFile
+	cmd.Stdout = out
+	cmd.Stderr = out
 	if err := cmd.Run(); err != nil {
 		logger.Fatal(err)
 	}
