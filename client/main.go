@@ -44,14 +44,16 @@ func Run(addr string) func() {
 	}
 }
 
-var id = os.Getenv("PLAYERID")
-var lock sync.RWMutex
-var players = make(map[string]*types.Player)
-var speechLock sync.RWMutex
-var playerSpeech = make(map[string][]string)
-var errc = make(chan error)
-var speechMode bool
-var currentSpeechBuffer string
+var (
+	id                  = os.Getenv("PLAYERID")
+	lock                sync.RWMutex
+	players             = make(map[string]*types.Player)
+	speechLock          sync.RWMutex
+	playerSpeech        = make(map[string][]string)
+	errc                = make(chan error)
+	speechMode          bool
+	currentSpeechBuffer string
+)
 
 func run(addr string) error {
 	log.Printf("connecting to %s", addr)
