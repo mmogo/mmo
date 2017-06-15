@@ -54,107 +54,6 @@ var errc = make(chan error)
 var speechMode bool
 var currentSpeechBuffer string
 
-var buttonLetters = map[pixelgl.Button]rune{
-	pixelgl.KeySpace:        ' ',
-	pixelgl.KeyApostrophe:   '\'',
-	pixelgl.KeyComma:        ',',
-	pixelgl.KeyMinus:        '-',
-	pixelgl.KeyPeriod:       '.',
-	pixelgl.KeySlash:        '/',
-	pixelgl.Key0:            '0',
-	pixelgl.Key1:            '1',
-	pixelgl.Key2:            '2',
-	pixelgl.Key3:            '3',
-	pixelgl.Key4:            '4',
-	pixelgl.Key5:            '5',
-	pixelgl.Key6:            '6',
-	pixelgl.Key7:            '7',
-	pixelgl.Key8:            '8',
-	pixelgl.Key9:            '9',
-	pixelgl.KeySemicolon:    ';',
-	pixelgl.KeyEqual:        '=',
-	pixelgl.KeyA:            'a',
-	pixelgl.KeyB:            'b',
-	pixelgl.KeyC:            'c',
-	pixelgl.KeyD:            'd',
-	pixelgl.KeyE:            'e',
-	pixelgl.KeyF:            'f',
-	pixelgl.KeyG:            'g',
-	pixelgl.KeyH:            'h',
-	pixelgl.KeyI:            'i',
-	pixelgl.KeyJ:            'j',
-	pixelgl.KeyK:            'k',
-	pixelgl.KeyL:            'l',
-	pixelgl.KeyM:            'm',
-	pixelgl.KeyN:            'n',
-	pixelgl.KeyO:            'o',
-	pixelgl.KeyP:            'p',
-	pixelgl.KeyQ:            'q',
-	pixelgl.KeyR:            'r',
-	pixelgl.KeyS:            's',
-	pixelgl.KeyT:            't',
-	pixelgl.KeyU:            'u',
-	pixelgl.KeyV:            'v',
-	pixelgl.KeyW:            'w',
-	pixelgl.KeyX:            'x',
-	pixelgl.KeyY:            'y',
-	pixelgl.KeyZ:            'z',
-	pixelgl.KeyLeftBracket:  '[',
-	pixelgl.KeyBackslash:    '\\',
-	pixelgl.KeyRightBracket: ']',
-	pixelgl.KeyGraveAccent:  '`',
-}
-
-var shiftedLetters = map[rune]rune{
-	'\'': '"',
-	',':  '<',
-	'-':  '_',
-	'.':  '>',
-	'/':  '?',
-	'0':  ')',
-	'1':  '!',
-	'2':  '@',
-	'3':  '#',
-	'4':  '$',
-	'5':  '%',
-	'6':  '^',
-	'7':  '&',
-	'8':  '*',
-	'9':  '(',
-	';':  ':',
-	'=':  '+',
-	'a':  'A',
-	'b':  'B',
-	'c':  'C',
-	'd':  'D',
-	'e':  'E',
-	'f':  'F',
-	'g':  'G',
-	'h':  'H',
-	'i':  'I',
-	'j':  'J',
-	'k':  'K',
-	'l':  'L',
-	'm':  'M',
-	'n':  'N',
-	'o':  'O',
-	'p':  'P',
-	'q':  'Q',
-	'r':  'R',
-	's':  'S',
-	't':  'T',
-	'u':  'U',
-	'v':  'V',
-	'w':  'W',
-	'x':  'X',
-	'y':  'Y',
-	'z':  'Z',
-	'[':  '{',
-	'\\': '|',
-	']':  '}',
-	'`':  '~',
-}
-
 func run(addr string) error {
 	log.Printf("connecting to %s", addr)
 	u := url.URL{Scheme: "ws", Host: addr, Path: "/connect"}
@@ -401,11 +300,7 @@ func processPlayerInput(conn *websocket.Conn, win *pixelgl.Window) error {
 }
 
 func processPlayerSpeechInput(conn *websocket.Conn, win *pixelgl.Window) error {
-	for button, letter := range buttonLetters {
-		if win.JustPressed(button) {
-			currentSpeechBuffer += string(letter)
-		}
-	}
+	currentSpeechBuffer += win.Typed()
 	if win.JustPressed(pixelgl.KeyBackspace) {
 		if len(currentSpeechBuffer) < 1 {
 			currentSpeechBuffer = ""
