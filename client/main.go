@@ -23,6 +23,7 @@ import (
 	"github.com/ilackarms/pkg/errors"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
+	"strings"
 	"sync"
 )
 
@@ -47,7 +48,112 @@ func Run(addr string) func() {
 var id = os.Getenv("PLAYERID")
 var lock sync.RWMutex
 var players = make(map[string]*types.Player)
+var speechLock sync.RWMutex
+var playerSpeech = make(map[string][]string)
 var errc = make(chan error)
+var speechMode bool
+var currentSpeechBuffer string
+
+var buttonLetters = map[pixelgl.Button]rune{
+	pixelgl.KeySpace:        ' ',
+	pixelgl.KeyApostrophe:   '\'',
+	pixelgl.KeyComma:        ',',
+	pixelgl.KeyMinus:        '-',
+	pixelgl.KeyPeriod:       '.',
+	pixelgl.KeySlash:        '/',
+	pixelgl.Key0:            '0',
+	pixelgl.Key1:            '1',
+	pixelgl.Key2:            '2',
+	pixelgl.Key3:            '3',
+	pixelgl.Key4:            '4',
+	pixelgl.Key5:            '5',
+	pixelgl.Key6:            '6',
+	pixelgl.Key7:            '7',
+	pixelgl.Key8:            '8',
+	pixelgl.Key9:            '9',
+	pixelgl.KeySemicolon:    ';',
+	pixelgl.KeyEqual:        '=',
+	pixelgl.KeyA:            'a',
+	pixelgl.KeyB:            'b',
+	pixelgl.KeyC:            'c',
+	pixelgl.KeyD:            'd',
+	pixelgl.KeyE:            'e',
+	pixelgl.KeyF:            'f',
+	pixelgl.KeyG:            'g',
+	pixelgl.KeyH:            'h',
+	pixelgl.KeyI:            'i',
+	pixelgl.KeyJ:            'j',
+	pixelgl.KeyK:            'k',
+	pixelgl.KeyL:            'l',
+	pixelgl.KeyM:            'm',
+	pixelgl.KeyN:            'n',
+	pixelgl.KeyO:            'o',
+	pixelgl.KeyP:            'p',
+	pixelgl.KeyQ:            'q',
+	pixelgl.KeyR:            'r',
+	pixelgl.KeyS:            's',
+	pixelgl.KeyT:            't',
+	pixelgl.KeyU:            'u',
+	pixelgl.KeyV:            'v',
+	pixelgl.KeyW:            'w',
+	pixelgl.KeyX:            'x',
+	pixelgl.KeyY:            'y',
+	pixelgl.KeyZ:            'z',
+	pixelgl.KeyLeftBracket:  '[',
+	pixelgl.KeyBackslash:    '\\',
+	pixelgl.KeyRightBracket: ']',
+	pixelgl.KeyGraveAccent:  '`',
+}
+
+var shiftedLetters = map[rune]rune{
+	'\'': '"',
+	',':  '<',
+	'-':  '_',
+	'.':  '>',
+	'/':  '?',
+	'0':  ')',
+	'1':  '!',
+	'2':  '@',
+	'3':  '#',
+	'4':  '$',
+	'5':  '%',
+	'6':  '^',
+	'7':  '&',
+	'8':  '*',
+	'9':  '(',
+	';':  ':',
+	'=':  '+',
+	'a':  'A',
+	'b':  'B',
+	'c':  'C',
+	'd':  'D',
+	'e':  'E',
+	'f':  'F',
+	'g':  'G',
+	'h':  'H',
+	'i':  'I',
+	'j':  'J',
+	'k':  'K',
+	'l':  'L',
+	'm':  'M',
+	'n':  'N',
+	'o':  'O',
+	'p':  'P',
+	'q':  'Q',
+	'r':  'R',
+	's':  'S',
+	't':  'T',
+	'u':  'U',
+	'v':  'V',
+	'w':  'W',
+	'x':  'X',
+	'y':  'Y',
+	'z':  'Z',
+	'[':  '{',
+	'\\': '|',
+	']':  '}',
+	'`':  '~',
+}
 
 func run(addr string) error {
 	log.Printf("connecting to %s", addr)
@@ -110,25 +216,8 @@ func run(addr string) error {
 		dt := time.Since(last).Seconds()
 		last = time.Now()
 
-		if win.Pressed(pixelgl.KeyA) {
-			if err := requestMove(constants.Directions.Left, conn); err != nil {
-				return err
-			}
-		}
-		if win.Pressed(pixelgl.KeyD) {
-			if err := requestMove(constants.Directions.Right, conn); err != nil {
-				return err
-			}
-		}
-		if win.Pressed(pixelgl.KeyW) {
-			if err := requestMove(constants.Directions.Up, conn); err != nil {
-				return err
-			}
-		}
-		if win.Pressed(pixelgl.KeyS) {
-			if err := requestMove(constants.Directions.Down, conn); err != nil {
-				return err
-			}
+		if err := processPlayerInput(conn, win); err != nil {
+			return err
 		}
 
 		angle += 3 * dt
@@ -144,13 +233,19 @@ func run(addr string) error {
 		for _, player := range players {
 			mrManPos := pixel.IM.Moved(win.Bounds().Center().Add(pixel.V(player.Position.X, player.Position.Y)))
 			//mrManSprite.Draw(win, mrManPos)
-			mrManSprite.DrawColorMask(win, mrManPos, colornames.Yellowgreen)
-			playerText := text.New(pixel.ZV, atlas)
-			playerText.Clear()
-			playerText.Dot = playerText.Orig
-			playerText.Dot.X -= playerText.BoundsOf(fmt.Sprintf("hi i'm player %v", id)).W() / 2
-			fmt.Fprintf(playerText, "hi i'm player %v", player.ID)
-			playerText.DrawColorMask(win, mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20)), colornames.Yellowgreen)
+			mrManSprite.DrawColorMask(win, mrManPos, colornames.Beige)
+			speechLock.RLock()
+			txt, ok := playerSpeech[player.ID]
+			speechLock.RUnlock()
+			if ok {
+				speechTxt := strings.Join(txt, "\n")
+				playerText := text.New(pixel.ZV, atlas)
+				playerText.Clear()
+				playerText.Dot = playerText.Orig
+				playerText.Dot.X -= playerText.BoundsOf(speechTxt).W() / 2
+				fmt.Fprint(playerText, speechTxt)
+				playerText.DrawColorMask(win, mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20)), colornames.White)
+			}
 		}
 		lock.RUnlock()
 
@@ -184,6 +279,15 @@ func requestMove(direction pixel.Vec, conn *websocket.Conn) error {
 	return shared.SendMessage(msg, conn)
 }
 
+func requestSpeak(txt string, conn *websocket.Conn) error {
+	msg := &shared.Message{
+		SpeakRequest: &shared.SpeakRequest{
+			Text: txt,
+		},
+	}
+	return shared.SendMessage(msg, conn)
+}
+
 func handleConnection(conn *websocket.Conn) {
 	loop := func() error {
 		msg, err := shared.GetMessage(conn)
@@ -193,6 +297,8 @@ func handleConnection(conn *websocket.Conn) {
 		switch {
 		case msg.PlayerMoved != nil:
 			handlePlayerMoved(msg.PlayerMoved)
+		case msg.PlayerSpoke != nil:
+			handlePlayerSpoke(msg.PlayerSpoke)
 		case msg.WorldState != nil:
 			handleWorldState(msg.WorldState)
 		case msg.PlayerDisconnected != nil:
@@ -223,6 +329,22 @@ func handlePlayerMoved(moved *shared.PlayerMoved) {
 	player.Position = moved.NewPosition
 }
 
+func handlePlayerSpoke(speech *shared.PlayerSpoke) {
+	id := speech.ID
+	speechLock.Lock()
+	defer speechLock.Unlock()
+	txt, ok := playerSpeech[id]
+	if !ok {
+		txt = []string{}
+		playerSpeech[id] = txt
+	}
+	txt = append(txt, speech.Text)
+	go func() {
+		time.Sleep(time.Second * 5)
+		txt = txt[1:]
+	}()
+}
+
 func handleWorldState(worldState *shared.WorldState) {
 	lock.Lock()
 	defer lock.Unlock()
@@ -235,4 +357,55 @@ func handlePlayerDisconnected(disconnected *shared.PlayerDisconnected) {
 	lock.Lock()
 	defer lock.Unlock()
 	delete(players, disconnected.ID)
+}
+
+func processPlayerInput(conn *websocket.Conn, win *pixelgl.Window) error {
+	if speechMode {
+		return processPlayerSpeechInput(conn, win)
+	}
+	if win.JustPressed(pixelgl.KeyEnter) {
+		speechMode = true
+		return nil
+	}
+
+	//movement
+	if win.Pressed(pixelgl.KeyA) {
+		if err := requestMove(constants.Directions.Left, conn); err != nil {
+			return err
+		}
+	}
+	if win.Pressed(pixelgl.KeyD) {
+		if err := requestMove(constants.Directions.Right, conn); err != nil {
+			return err
+		}
+	}
+	if win.Pressed(pixelgl.KeyW) {
+		if err := requestMove(constants.Directions.Up, conn); err != nil {
+			return err
+		}
+	}
+	if win.Pressed(pixelgl.KeyS) {
+		if err := requestMove(constants.Directions.Down, conn); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func processPlayerSpeechInput(conn *websocket.Conn, win *pixelgl.Window) error {
+	for button, letter := range buttonLetters {
+		if win.JustPressed(button) {
+			currentSpeechBuffer += string(letter)
+		}
+	}
+	if win.JustPressed(pixelgl.KeyBackspace) {
+		currentSpeechBuffer = currentSpeechBuffer[:len(currentSpeechBuffer)-1]
+	}
+	if win.JustPressed(pixelgl.KeyEnter) {
+		err := requestSpeak(currentSpeechBuffer, conn)
+		currentSpeechBuffer = ""
+		speechMode = false
+		return err
+	}
+	return nil
 }
