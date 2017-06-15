@@ -226,6 +226,7 @@ func run(addr string) error {
 		frameChange := 1.0 / FPS
 		frame := int(elapsed/frameChange) % len(mrmanFrames)
 		mrManSprite = pixel.NewSprite(mrmanSheet, mrmanFrames[frame])
+		playerText := text.New(pixel.ZV, atlas)
 
 		guysleySprite.Draw(win, pixel.IM.Rotated(pixel.ZV, angle).Moved(win.Bounds().Center()))
 		lock.RLock()
@@ -239,12 +240,19 @@ func run(addr string) error {
 			speechLock.RUnlock()
 			if ok {
 				speechTxt := strings.Join(txt, "\n")
-				playerText := text.New(pixel.ZV, atlas)
 				playerText.Clear()
 				playerText.Dot = playerText.Orig
 				playerText.Dot.X -= playerText.BoundsOf(speechTxt).W() / 2
 				fmt.Fprint(playerText, speechTxt)
 				playerText.DrawColorMask(win, mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20)), colornames.White)
+			}
+			if speechMode {
+				playerText.Clear()
+				playerText.Dot = playerText.Orig
+				playerText.Dot.X -= playerText.BoundsOf(currentSpeechBuffer+"_").W() / 2
+				fmt.Fprint(playerText, currentSpeechBuffer+"_")
+				playerText.DrawColorMask(win, mrManPos.
+					Moved(pixel.V(0, playerText.Bounds().H()+20)), colornames.White)
 			}
 		}
 		lock.RUnlock()
@@ -399,7 +407,15 @@ func processPlayerSpeechInput(conn *websocket.Conn, win *pixelgl.Window) error {
 		}
 	}
 	if win.JustPressed(pixelgl.KeyBackspace) {
-		currentSpeechBuffer = currentSpeechBuffer[:len(currentSpeechBuffer)-1]
+		if len(currentSpeechBuffer) < 1 {
+			currentSpeechBuffer = ""
+		} else {
+			currentSpeechBuffer = currentSpeechBuffer[:len(currentSpeechBuffer)-1]
+		}
+	}
+	if win.JustPressed(pixelgl.KeyEscape) {
+		currentSpeechBuffer = ""
+		speechMode = false
 	}
 	if win.JustPressed(pixelgl.KeyEnter) {
 		err := requestSpeak(currentSpeechBuffer, conn)
