@@ -11,7 +11,7 @@ SERVERADDR := 710107ec.ngrok.io
 
 CLIENTSOURCES := $(shell find $(CLIENTDIR) $(SHAREDDIR) -name '*.go')
 SERVERSOURCES := $(shell find $(SERVERDIR) $(SHAREDDIR) -name '*.go')
-PATCHERSOURCES := $(shell find $(PATCHERDIR) $(SHAREDDIR) -name '*.go')
+PATCHERSOURCES := $(shell find $(PATCHERDIR) -name '*.go')
 
 all: linux windows darwin
 
