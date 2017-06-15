@@ -15,6 +15,7 @@ import (
 
 const (
 	ticksPerSecond = 60
+	tickTime = 1.0/ticksPerSecond
 )
 
 var playersLock = sync.RWMutex{}
@@ -107,7 +108,17 @@ func handleConnection(conn *websocket.Conn) error {
 }
 
 func handlePlayer(id string) {
+	last := time.Now()
+	dt := 0.0
+	//rate limit player requests per second
 	for players[id] != nil {
+		dt += time.Since(last).Seconds()
+		last = time.Now()
+		if dt < tickTime {
+			time.Sleep(time.Millisecond)
+			continue
+		}
+		dt = 0.0
 		player := players[id]
 		conn := player.Conn
 		msg, err := shared.GetMessage(conn)
@@ -130,15 +141,14 @@ func gameLoop(errc chan error) {
 	for {
 		dt += time.Since(last).Seconds()
 		last = time.Now()
-		if dt > 1.0/ticksPerSecond {
-			dt = 0.0
-			if err := tick(); err != nil {
-				log.Printf("ERROR IN TICK: %v", err)
-				errc <- err
-			}
-		} else {
-			//prevent locking goroutines
+		if dt < tickTime {
 			time.Sleep(time.Millisecond)
+			continue
+		}
+		dt = 0.0
+		if err := tick(); err != nil {
+			log.Printf("ERROR IN TICK: %v", err)
+			errc <- err
 		}
 	}
 }
