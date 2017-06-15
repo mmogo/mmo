@@ -16,6 +16,8 @@ import (
 const (
 	ticksPerSecond = 60
 	tickTime = 1.0/ticksPerSecond
+
+	maximumMessageSize = 1024 * 1024 //1MB
 )
 
 var playersLock = sync.RWMutex{}
@@ -74,6 +76,8 @@ func serveClient(errc chan error) error {
 }
 
 func handleConnection(conn *websocket.Conn) error {
+	//prevent messages that are too damn big
+	conn.SetReadLimit(maximumMessageSize)
 	msg, err := shared.GetMessage(conn)
 	if err != nil {
 		return err
