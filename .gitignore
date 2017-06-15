@@ -18,3 +18,4 @@ bin
 client.bin
 testclient/
 game.log
+client-linux-amd64
