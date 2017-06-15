@@ -11,7 +11,6 @@ import (
 	"os"
 	"time"
 
-	"fmt"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
@@ -139,19 +138,18 @@ func run(addr string) error {
 			speechLock.RUnlock()
 			if ok {
 				speechTxt := strings.Join(txt, "\n")
-				playerText.Clear()
-				playerText.Dot = playerText.Orig
 				playerText.Dot.X -= playerText.BoundsOf(speechTxt).W() / 2
-				fmt.Fprint(playerText, speechTxt)
-				playerText.DrawColorMask(win, mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20)), colornames.White)
+				playerText.WriteString(speechTxt)
+				playerText.DrawColorMask(win,
+					mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20)).Chained(pixel.IM.Scaled(pixel.ZV, 2)),
+					colornames.White)
 			}
 			if speechMode {
-				playerText.Clear()
-				playerText.Dot = playerText.Orig
 				playerText.Dot.X -= playerText.BoundsOf(currentSpeechBuffer+"_").W() / 2
-				fmt.Fprint(playerText, currentSpeechBuffer+"_")
-				playerText.DrawColorMask(win, mrManPos.
-					Moved(pixel.V(0, playerText.Bounds().H()+20)), colornames.White)
+				playerText.WriteString(currentSpeechBuffer + "_")
+				playerText.DrawColorMask(win,
+					mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20)).Chained(pixel.IM.Scaled(pixel.ZV, 2)),
+					colornames.White)
 			}
 		}
 		lock.RUnlock()
