@@ -58,7 +58,7 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	clientBin, err := os.Create("client.bin")
+	clientBin, err := os.Create(clientName)
 	if err != nil {
 		logger.Fatal(err)
 	}
