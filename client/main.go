@@ -142,14 +142,15 @@ func run(addr string) error {
 					playerText.Clear()
 					playerText.Dot = playerText.Orig
 					playerText.Dot.X -= playerText.BoundsOf(line).W() / 2
-					playerText.Dot.Y += playerText.BoundsOf(line).H() * float64(len(txt)-i-1)
+					playerText.Dot.Y += playerText.BoundsOf(line).H() * float64(len(txt)-i)
 					playerText.WriteString(line + "\n")
 					playerText.DrawColorMask(win,
 						pixel.IM.Scaled(pixel.ZV, 2).Chained(mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20))),
 						colornames.Green)
 				}
 			}
-			if speechMode {
+
+			if speechMode && id == player.ID {
 				playerText.Clear()
 				playerText := text.New(pixel.ZV, atlas)
 				playerText.Dot = playerText.Orig
@@ -162,7 +163,6 @@ func run(addr string) error {
 		}
 		lock.RUnlock()
 
-		//playerText.Clear()
 		cam := pixel.IM.Moved(win.Bounds().Min.Sub(pixel.V(pos.X, pos.Y)))
 		win.SetMatrix(cam)
 		win.Update()
