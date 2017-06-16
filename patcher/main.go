@@ -32,7 +32,7 @@ func main() {
 
 	logger := log.New(out, "", log.LstdFlags)
 
-	if *addr == "" || *playerID == "" {
+	if *playerID == "" {
 		confData, err := ioutil.ReadFile(*confFile)
 		if err != nil {
 			logger.Fatalf("%s not found: %v", *confFile, err)
@@ -40,7 +40,7 @@ func main() {
 		lines := strings.Split(string(confData), "\n")
 		for _, line := range lines {
 			line = strings.Replace(line, " ", "", -1)
-			if *addr == "" && strings.Contains(line, "server=") {
+			if strings.Contains(line, "server=") {
 				*addr = strings.Replace(line, "server=", "", -1)
 			}
 			if *playerID == "" && strings.Contains(line, "player_id=") {
@@ -49,13 +49,24 @@ func main() {
 		}
 		if *playerID == "" {
 			*playerID = uuid.New()
+
 			//in case line is blank
 			updatedConf := strings.Replace(string(confData), "player_id=", "", -1)
 
-			updatedConf = fmt.Sprintf("%s\nplayer_id=%s", updatedConf, *playerID)
-			if err := ioutil.WriteFile(*confFile, []byte(updatedConf), 0666); err != nil {
+			conf, err := os.Create(*confFile)
+			if err != nil {
 				logger.Fatal(err)
 			}
+			if runtime.GOOS == "windows" {
+				if _, err := fmt.Fprintf(conf, "%s\r\nplayer_id=%s", updatedConf, *playerID); err != nil {
+					logger.Fatal(err)
+				}
+			} else {
+				if _, err := fmt.Fprintf(conf, "%s\nplayer_id=%s", updatedConf, *playerID); err != nil {
+					logger.Fatal(err)
+				}
+			}
+
 		}
 	}
 
