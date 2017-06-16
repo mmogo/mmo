@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/faiface/pixel"
@@ -22,8 +23,6 @@ import (
 	"github.com/ilackarms/pkg/errors"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
-	"strings"
-	"sync"
 )
 
 func main() {
@@ -138,19 +137,26 @@ func run(addr string) error {
 			speechLock.RLock()
 			txt, ok := playerSpeech[player.ID]
 			speechLock.RUnlock()
-			if ok {
-				speechTxt := strings.Join(txt, "\n")
-				playerText.Dot.X -= playerText.BoundsOf(speechTxt).W() / 2
-				playerText.WriteString(speechTxt)
-				playerText.DrawColorMask(win,
-					mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20)).Chained(pixel.IM.Scaled(pixel.ZV, 2)),
-					colornames.White)
+			if ok && len(txt) > 0 {
+				for i, line := range txt {
+					playerText.Clear()
+					playerText.Dot = playerText.Orig
+					playerText.Dot.X -= playerText.BoundsOf(line).W() / 2
+					playerText.Dot.Y += playerText.BoundsOf(line).H() * float64(len(txt)-i-1)
+					playerText.WriteString(line + "\n")
+					playerText.DrawColorMask(win,
+						pixel.IM.Scaled(pixel.ZV, 2).Chained(mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20))),
+						colornames.Green)
+				}
 			}
 			if speechMode {
+				playerText.Clear()
+				playerText := text.New(pixel.ZV, atlas)
+				playerText.Dot = playerText.Orig
 				playerText.Dot.X -= playerText.BoundsOf(currentSpeechBuffer+"_").W() / 2
 				playerText.WriteString(currentSpeechBuffer + "_")
 				playerText.DrawColorMask(win,
-					mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20)).Chained(pixel.IM.Scaled(pixel.ZV, 2)),
+					pixel.IM.Scaled(pixel.ZV, 2).Chained(mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20))),
 					colornames.White)
 			}
 		}
@@ -243,12 +249,24 @@ func handlePlayerSpoke(speech *shared.PlayerSpoke) {
 	txt, ok := playerSpeech[id]
 	if !ok {
 		txt = []string{}
-		playerSpeech[id] = txt
+	}
+	if len(txt) > 4 {
+		txt = txt[1:]
 	}
 	txt = append(txt, speech.Text)
+	playerSpeech[id] = txt
 	go func() {
 		time.Sleep(time.Second * 5)
-		txt = txt[1:]
+		speechLock.Lock()
+		defer speechLock.Unlock()
+		txt, ok := playerSpeech[id]
+		if !ok {
+			txt = []string{}
+		}
+		if len(txt) > 0 {
+			txt = txt[1:]
+		}
+		playerSpeech[id] = txt
 	}()
 }
 
@@ -313,7 +331,10 @@ func processPlayerSpeechInput(conn *websocket.Conn, win *pixelgl.Window) error {
 		speechMode = false
 	}
 	if win.JustPressed(pixelgl.KeyEnter) {
-		err := requestSpeak(currentSpeechBuffer, conn)
+		var err error
+		if len(currentSpeechBuffer) > 0 {
+			err = requestSpeak(currentSpeechBuffer, conn)
+		}
 		currentSpeechBuffer = ""
 		speechMode = false
 		return err

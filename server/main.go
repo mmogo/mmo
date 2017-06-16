@@ -15,7 +15,7 @@ import (
 
 const (
 	ticksPerSecond = 60
-	tickTime = 1.0/ticksPerSecond
+	tickTime       = 1.0 / ticksPerSecond
 
 	maximumMessageSize = 1024 * 1024 //1MB
 )
@@ -28,6 +28,7 @@ var updates = []*update{}
 
 type update struct {
 	notifyPlayerMoved        *notifyPlayerMoved
+	notifyPlayerSpoke        *notifyPlayerSpoke
 	notifyWorldState         *notifyWorldState
 	notifyPlayerDisconnected *notifyPlayerDisconnected
 }
@@ -35,6 +36,11 @@ type update struct {
 type notifyPlayerMoved struct {
 	id          string
 	newPosition pixel.Vec
+}
+
+type notifyPlayerSpoke struct {
+	id   string
+	text string
 }
 
 type notifyWorldState struct {
@@ -170,6 +176,11 @@ func tick() error {
 			if err := broadcastPlayerMoved(id, newPos); err != nil {
 				return err
 			}
+		case update.notifyPlayerSpoke != nil:
+			id, txt := update.notifyPlayerSpoke.id, update.notifyPlayerSpoke.text
+			if err := broadcastPlayerSpoke(id, txt); err != nil {
+				return err
+			}
 		case update.notifyWorldState != nil:
 			if err := sendWorldState(update.notifyWorldState.targetID); err != nil {
 				return err
@@ -193,6 +204,16 @@ func broadcastPlayerMoved(id string, newPos pixel.Vec) error {
 		},
 	}
 	return broadcast(playerMoved)
+}
+
+func broadcastPlayerSpoke(id string, txt string) error {
+	playerSpoke := &shared.Message{
+		PlayerSpoke: &shared.PlayerSpoke{
+			ID:   id,
+			Text: txt,
+		},
+	}
+	return broadcast(playerSpoke)
 }
 
 func sendWorldState(id string) error {
@@ -254,8 +275,7 @@ func handleSpeakRequest(id string, req *shared.SpeakRequest) error {
 	if player == nil {
 		return errors.New("requesting player "+id+" is nil??", nil)
 	}
-
-	queuePlayerMovedUpdate(id, req.Text)
+	queuePlayerSpokeUpdate(id, req.Text)
 	return nil
 }
 
@@ -266,6 +286,17 @@ func queuePlayerMovedUpdate(id string, pos pixel.Vec) {
 		notifyPlayerMoved: &notifyPlayerMoved{
 			id:          id,
 			newPosition: pos,
+		},
+	})
+}
+
+func queuePlayerSpokeUpdate(id string, txt string) {
+	updatesLock.Lock()
+	defer updatesLock.Unlock()
+	updates = append(updates, &update{
+		notifyPlayerSpoke: &notifyPlayerSpoke{
+			id:   id,
+			text: txt,
 		},
 	})
 }
