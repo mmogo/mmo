@@ -11,11 +11,14 @@ import (
 	"runtime"
 	"strings"
 
+	"fmt"
 	"github.com/layer-x/layerx-commons/lxhttpclient"
+	"github.com/pborman/uuid"
 )
 
 var addr = flag.String("addr", "localhost:8080", "http service address")
-var conffile = flag.String("conf", "login.txt", "login config file")
+var playerID = flag.String("id", "", "player id to use")
+var confFile = flag.String("conf", "login.txt", "login config file")
 
 func main() {
 	flag.Parse()
@@ -29,15 +32,29 @@ func main() {
 
 	logger := log.New(out, "", log.LstdFlags)
 
-	//override addr with login.txt
-	confdata, err := ioutil.ReadFile(*conffile)
-	if err == nil {
-		lines := strings.Split(string(confdata), "\n")
+	if *addr == "" || *playerID == "" {
+		confData, err := ioutil.ReadFile(*confFile)
+		if err != nil {
+			logger.Fatalf("%s not found: %v", *confFile, err)
+		}
+		lines := strings.Split(string(confData), "\n")
 		for _, line := range lines {
 			line = strings.Replace(line, " ", "", -1)
-			if strings.Contains(line, "server=") {
+			if *addr == "" && strings.Contains(line, "server=") {
 				*addr = strings.Replace(line, "server=", "", -1)
-				break
+			}
+			if *playerID == "" && strings.Contains(line, "player_id=") {
+				*playerID = strings.Replace(line, "player_id=", "", -1)
+			}
+		}
+		if *playerID == "" {
+			*playerID = uuid.New()
+			//in case line is blank
+			updatedConf := strings.Replace(string(confData), "player_id=", "", -1)
+
+			updatedConf = fmt.Sprintf("%s\nplayer_id=%s", updatedConf, *playerID)
+			if err := ioutil.WriteFile(*confFile, []byte(updatedConf), 0666); err != nil {
+				logger.Fatal(err)
 			}
 		}
 	}
@@ -76,7 +93,7 @@ func main() {
 	if err := clientBin.Close(); err != nil {
 		logger.Fatal(err)
 	}
-	cmd := exec.Command(filepath.Join(cwd, clientBin.Name()), "--addr", *addr)
+	cmd := exec.Command(filepath.Join(cwd, clientBin.Name()), "--addr", *addr, "--id", *playerID)
 	cmd.Stdout = out
 	cmd.Stderr = out
 	if err := cmd.Run(); err != nil {

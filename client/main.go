@@ -8,7 +8,6 @@ import (
 	"image"
 	"log"
 	"net/url"
-	"os"
 	"sync"
 	"time"
 
@@ -23,30 +22,35 @@ import (
 	"github.com/ilackarms/pkg/errors"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
+	"image/color"
+	"math"
 )
 
 func main() {
 	addr := flag.String("addr", "localhost:8080", "address for websocket connection")
+	id := flag.String("id", "", "playerid to use")
 	flag.Parse()
-	Main(*addr)
+	if *id == "" {
+		log.Fatal("id must be provided")
+	}
+	Main(*addr, *id)
 }
 
-func Main(addr string) {
-	pixelgl.Run(Run(addr))
+func Main(addr, id string) {
+	pixelgl.Run(Run(addr, id))
 }
 
-func Run(addr string) func() {
+func Run(addr, id string) func() {
 	return func() {
-		if err := run(addr); err != nil {
+		if err := run(addr, id); err != nil {
 			log.Fatal(err)
 		}
 	}
 }
 
 var (
-	id                  = os.Getenv("PLAYERID")
 	lock                sync.RWMutex
-	players             = make(map[string]*types.Player)
+	players             = make(map[string]*types.ClientPlayer)
 	speechLock          sync.RWMutex
 	playerSpeech        = make(map[string][]string)
 	errc                = make(chan error)
@@ -54,7 +58,7 @@ var (
 	currentSpeechBuffer string
 )
 
-func run(addr string) error {
+func run(addr, id string) error {
 	log.Printf("connecting to %s", addr)
 	u := url.URL{Scheme: "ws", Host: addr, Path: "/connect"}
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
@@ -62,16 +66,18 @@ func run(addr string) error {
 		return err
 	}
 	connectionRequest := &shared.ConnectRequest{
-		ID: os.Getenv("PLAYERID"),
+		ID: id,
 	}
 	if err := shared.SendMessage(&shared.Message{ConnectRequest: connectionRequest}, conn); err != nil {
 		return err
 	}
 	go func() { handleConnection(conn) }()
 	lock.Lock()
-	players[id] = &types.Player{
-		ID:       id,
-		Position: pixel.ZV,
+	players[id] = &types.ClientPlayer{
+		Player: &types.Player{
+			ID:       id,
+			Position: pixel.ZV,
+		},
 	}
 	lock.Unlock()
 
@@ -133,7 +139,7 @@ func run(addr string) error {
 		for _, player := range players {
 			mrManPos := pixel.IM.Moved(win.Bounds().Center().Add(pixel.V(player.Position.X, player.Position.Y)))
 			//mrManSprite.Draw(win, mrManPos)
-			mrManSprite.DrawColorMask(win, mrManPos, colornames.Beige)
+			mrManSprite.DrawColorMask(win, mrManPos, player.Color)
 			speechLock.RLock()
 			txt, ok := playerSpeech[player.ID]
 			speechLock.RUnlock()
@@ -146,7 +152,7 @@ func run(addr string) error {
 					playerText.WriteString(line + "\n")
 					playerText.DrawColorMask(win,
 						pixel.IM.Scaled(pixel.ZV, 2).Chained(mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20))),
-						colornames.Green)
+						player.Color)
 				}
 			}
 
@@ -233,9 +239,12 @@ func handlePlayerMoved(moved *shared.PlayerMoved) {
 	defer lock.RUnlock()
 	player, ok := players[id]
 	if !ok {
-		player = &types.Player{
-			ID:       id,
-			Position: moved.NewPosition,
+		player = &types.ClientPlayer{
+			Player: &types.Player{
+				ID:       id,
+				Position: moved.NewPosition,
+			},
+			Color: stringToColor(id),
 		}
 		players[id] = player
 	}
@@ -274,7 +283,10 @@ func handleWorldState(worldState *shared.WorldState) {
 	lock.Lock()
 	defer lock.Unlock()
 	for _, player := range worldState.Players {
-		players[player.ID] = player
+		players[player.ID] = &types.ClientPlayer{
+			Player: player,
+			Color:  stringToColor(player.ID),
+		}
 	}
 }
 
@@ -340,4 +352,15 @@ func processPlayerSpeechInput(conn *websocket.Conn, win *pixelgl.Window) error {
 		return err
 	}
 	return nil
+}
+
+func stringToColor(str string) color.Color {
+	var c color.RGBA
+	for _, char := range str {
+		c.R += uint8(char % math.MaxUint8)
+		c.G += uint8((char - char%math.MaxUint8) % math.MaxUint8)
+		c.G += uint8((char - (char-char%math.MaxUint8)%math.MaxUint8) % math.MaxUint8)
+	}
+	c.A = 255
+	return c
 }

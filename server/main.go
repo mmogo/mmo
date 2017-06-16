@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/faiface/pixel"
 	"github.com/gorilla/websocket"
@@ -52,8 +53,10 @@ type notifyPlayerDisconnected struct {
 }
 
 func main() {
+	port := flag.Int("p", 8080, "port to serve on")
+	flag.Parse()
 	errc := make(chan error)
-	go func() { errc <- serveClient(errc) }()
+	go func() { errc <- serveClient(*port, errc) }()
 	go func() { gameLoop(errc) }()
 	select {
 	case err := <-errc:
@@ -61,7 +64,7 @@ func main() {
 	}
 }
 
-func serveClient(errc chan error) error {
+func serveClient(port int, errc chan error) error {
 	http.Handle("/", http.FileServer(http.Dir(".")))
 	http.Handle("/connect", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		conn, err := (&websocket.Upgrader{}).Upgrade(w, req, nil)
@@ -75,7 +78,7 @@ func serveClient(errc chan error) error {
 		}
 	}))
 	log.Printf("serving client")
-	if err := http.ListenAndServe(":8080", http.DefaultServeMux); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%v", port), http.DefaultServeMux); err != nil {
 		return errors.New("failed listening on socket", err)
 	}
 	return nil
@@ -160,7 +163,8 @@ func gameLoop(errc chan error) {
 		dt = 0.0
 		if err := tick(); err != nil {
 			log.Printf("ERROR IN TICK: %v", err)
-			errc <- err
+			//TODO: handle tick errors
+			//errc <- err
 		}
 	}
 }
