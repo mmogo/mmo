@@ -135,6 +135,8 @@ func handlePlayer(id string) {
 		switch {
 		case msg.MoveRequest != nil:
 			handleMoveRequest(id, msg.MoveRequest)
+		case msg.SpeakRequest != nil:
+			handleSpeakRequest(id, msg.SpeakRequest)
 		}
 	}
 }
@@ -242,6 +244,18 @@ func handleMoveRequest(id string, req *shared.MoveRequest) error {
 
 	player.Position = player.Position.Add(req.Direction)
 	queuePlayerMovedUpdate(id, player.Position)
+	return nil
+}
+
+func handleSpeakRequest(id string, req *shared.SpeakRequest) error {
+	playersLock.RLock()
+	defer playersLock.RUnlock()
+	player := players[id]
+	if player == nil {
+		return errors.New("requesting player "+id+" is nil??", nil)
+	}
+
+	queuePlayerMovedUpdate(id, req.Text)
 	return nil
 }
 
