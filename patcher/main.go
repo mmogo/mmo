@@ -11,9 +11,12 @@ import (
 	"runtime"
 	"strings"
 
+	"crypto/md5"
 	"fmt"
 	"github.com/layer-x/layerx-commons/lxhttpclient"
 	"github.com/pborman/uuid"
+	"net/http"
+	"net/url"
 )
 
 var addr = flag.String("addr", "localhost:8080", "http service address")
@@ -79,35 +82,64 @@ func main() {
 	default:
 		clientName = "client-linux-amd64"
 	}
-	res, err := lxhttpclient.GetAsync(*addr, "/"+clientName, nil)
-	if err != nil {
+
+	if err := downloadClient(clientName); err != nil {
 		logger.Fatal(err)
 	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		logger.Fatal(err)
 	}
-	clientBin, err := os.Create(clientName)
-	if err != nil {
-		logger.Fatal(err)
-	}
 
-	if err := chmod(clientBin, 0755); err != nil {
-		logger.Fatal(err)
-	}
-
-	_, err = io.Copy(clientBin, res.Body)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	defer res.Body.Close()
-	if err := clientBin.Close(); err != nil {
-		logger.Fatal(err)
-	}
-	cmd := exec.Command(filepath.Join(cwd, clientBin.Name()), "--addr", *addr, "--id", *playerID)
+	cmd := exec.Command(filepath.Join(cwd, clientName), "--addr", *addr, "--id", *playerID)
 	cmd.Stdout = out
 	cmd.Stderr = out
 	if err := cmd.Run(); err != nil {
 		logger.Fatal(err)
 	}
+}
+
+func downloadClient(clientName string) error {
+	var checksum string
+	if currentClient, err := os.Open(clientName); err == nil {
+		defer currentClient.Close()
+		h := md5.New()
+		if _, err := io.Copy(h, currentClient); err != nil {
+			return err
+		}
+		checksum = string(h.Sum(nil))
+	}
+	query := url.Values{}
+	query.Set("checksum", checksum)
+
+	res, err := lxhttpclient.GetAsync(*addr, "/"+clientName+"?"+query.Encode(), nil)
+	if err != nil {
+		return err
+	}
+	//we already have the right client, skip download
+	if res.StatusCode == http.StatusNoContent {
+		log.Printf("skipping download")
+		return nil
+	}
+	log.Printf("downloading client")
+
+	clientBin, err := os.Create(clientName)
+	if err != nil {
+		return err
+	}
+
+	if err := chmod(clientBin, 0755); err != nil {
+		return err
+	}
+
+	_, err = io.Copy(clientBin, res.Body)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if err := clientBin.Close(); err != nil {
+		return err
+	}
+	return nil
 }

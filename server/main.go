@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/md5"
 	"flag"
 	"fmt"
 	"github.com/faiface/pixel"
@@ -8,8 +9,11 @@ import (
 	"github.com/ilackarms/_anything/shared"
 	"github.com/ilackarms/_anything/shared/types"
 	"github.com/ilackarms/pkg/errors"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -65,7 +69,36 @@ func main() {
 }
 
 func serveClient(port int, errc chan error) error {
-	http.Handle("/", http.FileServer(http.Dir(".")))
+	//get client checksums
+	clientChecksums := map[string]string{
+		"client-windows-4.0-amd64.exe": "",
+		"client-darwin-10.6-amd64":     "",
+		"client-linux-amd64":           "",
+	}
+	//requires clients to be in same dir as server
+	for client := range clientChecksums {
+		f, err := os.Open(client)
+		if err != nil {
+			return err
+		}
+		h := md5.New()
+		if _, err := io.Copy(h, f); err != nil {
+			return err
+		}
+		clientChecksums[client] = string(h.Sum(nil))
+	}
+
+	http.Handle("/",
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			for client, checksum := range clientChecksums {
+				if strings.Contains(req.URL.Path, client) && req.URL.Query().Get("checksum") == checksum {
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+			}
+			http.FileServer(http.Dir(".")).ServeHTTP(w, req)
+		}),
+	)
 	http.Handle("/connect", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		conn, err := (&websocket.Upgrader{}).Upgrade(w, req, nil)
 		if err != nil {
