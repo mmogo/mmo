@@ -165,8 +165,8 @@ func gameLoop(errc chan error) {
 		dt += time.Since(last).Seconds()
 		last = time.Now()
 		if dt < tickTime {
-			time.Sleep(time.Millisecond)
-			continue
+			sleepTime := time.Duration(1000000*(tickTime-dt)) * time.Microsecond
+			time.Sleep(sleepTime)
 		}
 		dt = 0.0
 		if err := tick(); err != nil {
