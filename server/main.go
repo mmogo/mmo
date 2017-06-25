@@ -134,7 +134,11 @@ func handleConnection(conn *websocket.Conn) error {
 		playersLock.Lock()
 		defer playersLock.Unlock()
 		delete(players, id)
-		queueNotifyPlayerDisconnected(id)
+		queueUpdate(&update{
+			notifyPlayerDisconnected: &notifyPlayerDisconnected{
+				id: id,
+			},
+		})
 		return nil
 	})
 	playersLock.Lock()
@@ -146,8 +150,17 @@ func handleConnection(conn *websocket.Conn) error {
 		},
 		Conn: conn,
 	}
-	queuePlayerMovedUpdate(id, pos)
-	queueSendWorldStateUpdate(id)
+	queueUpdate(&update{
+		notifyPlayerMoved: &notifyPlayerMoved{
+			id:          id,
+			newPosition: pos,
+		},
+	})
+	queueUpdate(&update{
+		notifyWorldState: &notifyWorldState{
+			targetID: id,
+		},
+	})
 	go handlePlayer(id)
 	log.Printf("new connected player %s", id)
 	return nil
@@ -171,7 +184,11 @@ func handlePlayer(id string) {
 		if err != nil {
 			log.Print(errors.New(fmt.Sprintf("Client disconnected: (failed getting message for player %s)", id), err))
 			delete(players, id)
-			queueNotifyPlayerDisconnected(id)
+			queueUpdate(&update{
+				notifyPlayerDisconnected: &notifyPlayerDisconnected{
+					id: id,
+				},
+			})
 			continue
 		}
 		switch {
@@ -301,7 +318,12 @@ func handleMoveRequest(id string, req *shared.MoveRequest) error {
 	}
 
 	player.Position = player.Position.Add(req.Direction)
-	queuePlayerMovedUpdate(id, player.Position)
+	queueUpdate(&update{
+		notifyPlayerMoved: &notifyPlayerMoved{
+			id:          id,
+			newPosition: player.Position,
+		},
+	})
 	return nil
 }
 
@@ -312,48 +334,17 @@ func handleSpeakRequest(id string, req *shared.SpeakRequest) error {
 	if player == nil {
 		return errors.New("requesting player "+id+" is nil??", nil)
 	}
-	queuePlayerSpokeUpdate(id, req.Text)
+	queueUpdate(&update{
+		notifyPlayerSpoke: &notifyPlayerSpoke{
+			id:   id,
+			text: req.Text,
+		},
+	})
 	return nil
 }
 
-func queuePlayerMovedUpdate(id string, pos pixel.Vec) {
+func queueUpdate(u *update) {
 	updatesLock.Lock()
 	defer updatesLock.Unlock()
-	updates = append(updates, &update{
-		notifyPlayerMoved: &notifyPlayerMoved{
-			id:          id,
-			newPosition: pos,
-		},
-	})
-}
-
-func queuePlayerSpokeUpdate(id string, txt string) {
-	updatesLock.Lock()
-	defer updatesLock.Unlock()
-	updates = append(updates, &update{
-		notifyPlayerSpoke: &notifyPlayerSpoke{
-			id:   id,
-			text: txt,
-		},
-	})
-}
-
-func queueSendWorldStateUpdate(id string) {
-	updatesLock.Lock()
-	defer updatesLock.Unlock()
-	updates = append(updates, &update{
-		notifyWorldState: &notifyWorldState{
-			targetID: id,
-		},
-	})
-}
-
-func queueNotifyPlayerDisconnected(id string) {
-	updatesLock.Lock()
-	defer updatesLock.Unlock()
-	updates = append(updates, &update{
-		notifyPlayerDisconnected: &notifyPlayerDisconnected{
-			id: id,
-		},
-	})
+	updates = append(updates, u)
 }
