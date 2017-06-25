@@ -48,6 +48,7 @@ func Run(addr, id string) func() {
 }
 
 var (
+	playerID            string
 	lock                sync.RWMutex
 	players             = make(map[string]*shared.ClientPlayer)
 	speechLock          sync.RWMutex
@@ -67,6 +68,7 @@ func run(addr, id string) error {
 	connectionRequest := &shared.ConnectRequest{
 		ID: id,
 	}
+	playerID = id
 	if err := shared.SendMessage(&shared.Message{ConnectRequest: connectionRequest}, conn); err != nil {
 		return err
 	}
@@ -233,21 +235,7 @@ func handleConnection(conn *websocket.Conn) {
 }
 
 func handlePlayerMoved(moved *shared.PlayerMoved) {
-	id := moved.ID
-	lock.RLock()
-	defer lock.RUnlock()
-	player, ok := players[id]
-	if !ok {
-		player = &shared.ClientPlayer{
-			Player: &shared.Player{
-				ID:       id,
-				Position: moved.NewPosition,
-			},
-			Color: stringToColor(id),
-		}
-		players[id] = player
-	}
-	player.Position = moved.NewPosition
+	setPlayerPosition(moved.ID, moved.NewPosition)
 }
 
 func handlePlayerSpoke(speech *shared.PlayerSpoke) {
@@ -306,21 +294,25 @@ func processPlayerInput(conn *websocket.Conn, win *pixelgl.Window) error {
 
 	//movement
 	if win.Pressed(pixelgl.KeyA) {
+		setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Left))
 		if err := requestMove(constants.Directions.Left, conn); err != nil {
 			return err
 		}
 	}
 	if win.Pressed(pixelgl.KeyD) {
+		setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Right))
 		if err := requestMove(constants.Directions.Right, conn); err != nil {
 			return err
 		}
 	}
 	if win.Pressed(pixelgl.KeyW) {
+		setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Up))
 		if err := requestMove(constants.Directions.Up, conn); err != nil {
 			return err
 		}
 	}
 	if win.Pressed(pixelgl.KeyS) {
+		setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Down))
 		if err := requestMove(constants.Directions.Down, conn); err != nil {
 			return err
 		}
@@ -362,4 +354,20 @@ func stringToColor(str string) color.Color {
 	}
 	c.A = 255
 	return c
+}
+
+func setPlayerPosition(id string, pos pixel.Vec) {
+	lock.RLock()
+	defer lock.RUnlock()
+	player, ok := players[id]
+	if !ok {
+		player = &shared.ClientPlayer{
+			Player: &shared.Player{
+				ID: id,
+			},
+			Color: stringToColor(id),
+		}
+		players[id] = player
+	}
+	player.Position = pos
 }
