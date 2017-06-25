@@ -148,11 +148,11 @@ func run(addr, id string) error {
 		mrManSprite = pixel.NewSprite(mrmanSheet, mrmanFrames[frame])
 		playerText := text.New(pixel.ZV, atlas)
 
-		guysleySprite.Draw(win, pixel.IM.Rotated(pixel.ZV, angle).Moved(win.Bounds().Center()))
+		guysleySprite.Draw(win, pixel.IM.Rotated(pixel.ZV, angle))
 		lock.RLock()
 		pos := players[id].Position
 		for _, player := range players {
-			mrManPos := pixel.IM.Moved(win.Bounds().Center().Add(pixel.V(player.Position.X, player.Position.Y)))
+			mrManPos := pixel.IM.Moved(pixel.V(player.Position.X, player.Position.Y))
 			//mrManSprite.Draw(win, mrManPos)
 			mrManSprite.DrawColorMask(win, mrManPos, player.Color)
 			speechLock.RLock()
@@ -184,7 +184,7 @@ func run(addr, id string) error {
 		}
 		lock.RUnlock()
 
-		cam := pixel.IM.Moved(win.Bounds().Min.Sub(pixel.V(pos.X, pos.Y)))
+		cam := pixel.IM.Moved(win.Bounds().Center().Sub(pixel.V(pos.X, pos.Y)))
 
 		playerText.Clear()
 		mousePos := cam.Unproject(win.MousePosition())
