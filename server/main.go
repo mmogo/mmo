@@ -14,47 +14,16 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 )
 
 const (
-	ticksPerSecond = 60
+	ticksPerSecond = 10
 	tickTime       = 1.0 / ticksPerSecond
 
-	maximumMessageSize = 1024 * 1024 //1MB
+	messagePerTickLimit = 60
+	maximumMessageSize  = 1024 * 1024 //1MB
 )
-
-var playersLock = sync.RWMutex{}
-var players = make(map[string]*types.ServerPlayer)
-
-var updatesLock = sync.Mutex{}
-var updates = []*update{}
-
-type update struct {
-	notifyPlayerMoved        *notifyPlayerMoved
-	notifyPlayerSpoke        *notifyPlayerSpoke
-	notifyWorldState         *notifyWorldState
-	notifyPlayerDisconnected *notifyPlayerDisconnected
-}
-
-type notifyPlayerMoved struct {
-	id          string
-	newPosition pixel.Vec
-}
-
-type notifyPlayerSpoke struct {
-	id   string
-	text string
-}
-
-type notifyWorldState struct {
-	targetID string
-}
-
-type notifyPlayerDisconnected struct {
-	id string
-}
 
 func main() {
 	port := flag.Int("p", 8080, "port to serve on")
