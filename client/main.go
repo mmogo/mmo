@@ -25,6 +25,15 @@ import (
 	"math"
 )
 
+type simulation struct {
+	f       func()
+	created time.Time
+}
+
+var simulations []*simulation
+var runSimulations []*simulation
+var simLock sync.Mutex
+
 func main() {
 	addr := flag.String("addr", "localhost:8080", "address for websocket connection")
 	id := flag.String("id", "", "playerid to use")
@@ -69,7 +78,9 @@ func run(addr, id string) error {
 		ID: id,
 	}
 	playerID = id
-	if err := shared.SendMessage(&shared.Message{ConnectRequest: connectionRequest}, conn); err != nil {
+	if err := shared.SendMessage(&shared.Message{
+		ConnectRequest: connectionRequest,
+	}, conn); err != nil {
 		return err
 	}
 	go func() { handleConnection(conn) }()
@@ -125,6 +136,8 @@ func run(addr, id string) error {
 		if err := processPlayerInput(conn, win); err != nil {
 			return err
 		}
+
+		applySimulations()
 
 		angle += 3 * dt
 
@@ -194,6 +207,7 @@ func requestMove(direction pixel.Vec, conn *websocket.Conn) error {
 	msg := &shared.Message{
 		MoveRequest: &shared.MoveRequest{
 			Direction: direction,
+			Created:   time.Now(),
 		},
 	}
 	return shared.SendMessage(msg, conn)
@@ -236,6 +250,7 @@ func handleConnection(conn *websocket.Conn) {
 
 func handlePlayerMoved(moved *shared.PlayerMoved) {
 	setPlayerPosition(moved.ID, moved.NewPosition)
+	reapplySimulations(moved.RequestTime)
 }
 
 func handlePlayerSpoke(speech *shared.PlayerSpoke) {
@@ -294,25 +309,33 @@ func processPlayerInput(conn *websocket.Conn, win *pixelgl.Window) error {
 
 	//movement
 	if win.Pressed(pixelgl.KeyA) {
-		setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Left))
+		queueSimulation(func() {
+			setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Left))
+		})
 		if err := requestMove(constants.Directions.Left, conn); err != nil {
 			return err
 		}
 	}
 	if win.Pressed(pixelgl.KeyD) {
-		setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Right))
+		queueSimulation(func() {
+			setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Right))
+		})
 		if err := requestMove(constants.Directions.Right, conn); err != nil {
 			return err
 		}
 	}
 	if win.Pressed(pixelgl.KeyW) {
-		setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Up))
+		queueSimulation(func() {
+			setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Up))
+		})
 		if err := requestMove(constants.Directions.Up, conn); err != nil {
 			return err
 		}
 	}
 	if win.Pressed(pixelgl.KeyS) {
-		setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Down))
+		queueSimulation(func() {
+			setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Down))
+		})
 		if err := requestMove(constants.Directions.Down, conn); err != nil {
 			return err
 		}
@@ -370,4 +393,40 @@ func setPlayerPosition(id string, pos pixel.Vec) {
 		players[id] = player
 	}
 	player.Position = pos
+}
+
+func queueSimulation(f func()) {
+	simLock.Lock()
+	simulations = append(simulations, &simulation{
+		f:       f,
+		created: time.Now(),
+	})
+	simLock.Unlock()
+}
+
+func applySimulations() {
+	simLock.Lock()
+	for _, sim := range simulations {
+		sim.f()
+		runSimulations = append(runSimulations, sim)
+	}
+	simulations = []*simulation{}
+	simLock.Unlock()
+}
+
+func reapplySimulations(from time.Time) {
+	i := 0
+	if len(runSimulations) == 0 {
+		return
+	}
+	simLock.Lock()
+	for _, sim := range runSimulations {
+		if sim.created.After(from) {
+			break
+		}
+		i++
+	}
+	simulations = append(runSimulations[i:], simulations...)
+	runSimulations = []*simulation{}
+	simLock.Unlock()
 }

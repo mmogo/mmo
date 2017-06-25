@@ -2,6 +2,7 @@ package shared
 
 import (
 	"github.com/faiface/pixel"
+	"time"
 )
 
 type Message struct {
@@ -21,6 +22,7 @@ type ConnectRequest struct {
 
 type MoveRequest struct {
 	Direction pixel.Vec
+	Created   time.Time
 }
 
 type SpeakRequest struct {
@@ -30,6 +32,7 @@ type SpeakRequest struct {
 type PlayerMoved struct {
 	ID          string
 	NewPosition pixel.Vec
+	RequestTime time.Time
 }
 
 type PlayerSpoke struct {

@@ -1,6 +1,9 @@
 package main
 
-import "github.com/faiface/pixel"
+import (
+	"github.com/faiface/pixel"
+	"time"
+)
 
 type (
 	update struct {
@@ -13,6 +16,7 @@ type (
 	notifyPlayerMoved struct {
 		id          string
 		newPosition pixel.Vec
+		requestTime time.Time
 	}
 
 	notifyPlayerSpoke struct {

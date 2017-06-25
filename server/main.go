@@ -122,6 +122,7 @@ func handleConnection(conn *websocket.Conn) error {
 		notifyPlayerMoved: &notifyPlayerMoved{
 			id:          id,
 			newPosition: pos,
+			requestTime: time.Now(),
 		},
 	})
 	queueUpdate(&update{
@@ -198,8 +199,8 @@ func tick() error {
 	for _, update := range updates {
 		switch {
 		case update.notifyPlayerMoved != nil:
-			id, newPos := update.notifyPlayerMoved.id, update.notifyPlayerMoved.newPosition
-			if err := broadcastPlayerMoved(id, newPos); err != nil {
+			id, newPos, requestTime := update.notifyPlayerMoved.id, update.notifyPlayerMoved.newPosition, update.notifyPlayerMoved.requestTime
+			if err := broadcastPlayerMoved(id, newPos, requestTime); err != nil {
 				return err
 			}
 		case update.notifyPlayerSpoke != nil:
@@ -222,11 +223,12 @@ func tick() error {
 	return nil
 }
 
-func broadcastPlayerMoved(id string, newPos pixel.Vec) error {
+func broadcastPlayerMoved(id string, newPos pixel.Vec, requestTime time.Time) error {
 	playerMoved := &shared.Message{
 		PlayerMoved: &shared.PlayerMoved{
 			ID:          id,
 			NewPosition: newPos,
+			RequestTime: requestTime,
 		},
 	}
 	return broadcast(playerMoved)
@@ -258,11 +260,15 @@ func sendWorldState(id string) error {
 	if !ok {
 		return errors.New("player "+id+" not found", nil)
 	}
-	return shared.SendMessage(&shared.Message{WorldState: &shared.WorldState{Players: ps}}, player.Conn)
+	return shared.SendMessage(&shared.Message{
+		WorldState: &shared.WorldState{Players: ps},
+	}, player.Conn)
 }
 
 func broadcastPlayerDisconnected(id string) error {
-	playerDisconnected := &shared.Message{PlayerDisconnected: &shared.PlayerDisconnected{ID: id}}
+	playerDisconnected := &shared.Message{
+		PlayerDisconnected: &shared.PlayerDisconnected{ID: id},
+	}
 	return broadcast(playerDisconnected)
 }
 
@@ -294,6 +300,7 @@ func handleMoveRequest(id string, req *shared.MoveRequest) error {
 		notifyPlayerMoved: &notifyPlayerMoved{
 			id:          id,
 			newPosition: player.Position,
+			requestTime: req.Created,
 		},
 	})
 	return nil
