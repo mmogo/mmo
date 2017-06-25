@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"fmt"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
@@ -184,6 +185,12 @@ func run(addr, id string) error {
 		lock.RUnlock()
 
 		cam := pixel.IM.Moved(win.Bounds().Min.Sub(pixel.V(pos.X, pos.Y)))
+
+		playerText.Clear()
+		mousePos := cam.Unproject(win.MousePosition())
+		playerText.WriteString(fmt.Sprintf("%v", mousePos))
+		playerText.DrawColorMask(win, pixel.IM.Moved(mousePos), colornames.Firebrick)
+
 		win.SetMatrix(cam)
 		win.Update()
 	}
