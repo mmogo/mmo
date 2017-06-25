@@ -18,7 +18,6 @@ import (
 	"github.com/ilackarms/_anything/client/assets"
 	"github.com/ilackarms/_anything/shared"
 	"github.com/ilackarms/_anything/shared/constants"
-	"github.com/ilackarms/_anything/shared/types"
 	"github.com/ilackarms/pkg/errors"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
@@ -50,7 +49,7 @@ func Run(addr, id string) func() {
 
 var (
 	lock                sync.RWMutex
-	players             = make(map[string]*types.ClientPlayer)
+	players             = make(map[string]*shared.ClientPlayer)
 	speechLock          sync.RWMutex
 	playerSpeech        = make(map[string][]string)
 	errc                = make(chan error)
@@ -73,8 +72,8 @@ func run(addr, id string) error {
 	}
 	go func() { handleConnection(conn) }()
 	lock.Lock()
-	players[id] = &types.ClientPlayer{
-		Player: &types.Player{
+	players[id] = &shared.ClientPlayer{
+		Player: &shared.Player{
 			ID:       id,
 			Position: pixel.ZV,
 		},
@@ -239,8 +238,8 @@ func handlePlayerMoved(moved *shared.PlayerMoved) {
 	defer lock.RUnlock()
 	player, ok := players[id]
 	if !ok {
-		player = &types.ClientPlayer{
-			Player: &types.Player{
+		player = &shared.ClientPlayer{
+			Player: &shared.Player{
 				ID:       id,
 				Position: moved.NewPosition,
 			},
@@ -283,7 +282,7 @@ func handleWorldState(worldState *shared.WorldState) {
 	lock.Lock()
 	defer lock.Unlock()
 	for _, player := range worldState.Players {
-		players[player.ID] = &types.ClientPlayer{
+		players[player.ID] = &shared.ClientPlayer{
 			Player: player,
 			Color:  stringToColor(player.ID),
 		}

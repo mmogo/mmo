@@ -7,7 +7,6 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/gorilla/websocket"
 	"github.com/ilackarms/_anything/shared"
-	"github.com/ilackarms/_anything/shared/types"
 	"github.com/ilackarms/pkg/errors"
 	"io"
 	"log"
@@ -112,8 +111,8 @@ func handleConnection(conn *websocket.Conn) error {
 	})
 	playersLock.Lock()
 	defer playersLock.Unlock()
-	players[id] = &types.ServerPlayer{
-		Player: &types.Player{
+	players[id] = &shared.ServerPlayer{
+		Player: &shared.Player{
 			ID:       id,
 			Position: pos,
 		},
@@ -131,23 +130,16 @@ func handleConnection(conn *websocket.Conn) error {
 		},
 	})
 	go handlePlayer(id)
-	log.Printf("new connected player %s", id)
+	log.Printf("new connected player %s from %s", id, conn.RemoteAddr().String())
 	return nil
 }
 
 func handlePlayer(id string) {
-	last := time.Now()
-	dt := 0.0
-	//rate limit player requests per second
 	for players[id] != nil {
-		dt += time.Since(last).Seconds()
-		last = time.Now()
-		if dt < tickTime {
-			time.Sleep(time.Millisecond)
-			continue
-		}
-		dt = 0.0
 		player := players[id]
+		for len(player.RequestQueue) >= messagePerTickLimit {
+			time.Sleep(time.Millisecond)
+		}
 		conn := player.Conn
 		msg, err := shared.GetMessage(conn)
 		if err != nil {
@@ -160,12 +152,9 @@ func handlePlayer(id string) {
 			})
 			continue
 		}
-		switch {
-		case msg.MoveRequest != nil:
-			handleMoveRequest(id, msg.MoveRequest)
-		case msg.SpeakRequest != nil:
-			handleSpeakRequest(id, msg.SpeakRequest)
-		}
+		player.QueueLock.Lock()
+		player.RequestQueue = append(player.RequestQueue, msg)
+		player.QueueLock.Unlock()
 	}
 }
 
@@ -189,6 +178,20 @@ func gameLoop(errc chan error) {
 }
 
 func tick() error {
+	for id, player := range players {
+		player.QueueLock.Lock()
+		for _, msg := range player.RequestQueue {
+			switch {
+			case msg.MoveRequest != nil:
+				handleMoveRequest(id, msg.MoveRequest)
+			case msg.SpeakRequest != nil:
+				handleSpeakRequest(id, msg.SpeakRequest)
+			}
+		}
+		player.RequestQueue = []*shared.Message{}
+		player.QueueLock.Unlock()
+	}
+
 	updatesLock.Lock()
 	defer updatesLock.Unlock()
 	processed := 0
@@ -241,10 +244,10 @@ func broadcastPlayerSpoke(id string, txt string) error {
 
 func sendWorldState(id string) error {
 	playersLock.RLock()
-	ps := make([]*types.Player, len(players))
+	ps := make([]*shared.Player, len(players))
 	i := 0
 	for _, player := range players {
-		ps[i] = &types.Player{
+		ps[i] = &shared.Player{
 			ID:       player.ID,
 			Position: player.Position,
 		}

@@ -2,7 +2,6 @@ package shared
 
 import (
 	"github.com/faiface/pixel"
-	"github.com/ilackarms/_anything/shared/types"
 )
 
 type Message struct {
@@ -39,7 +38,7 @@ type PlayerSpoke struct {
 }
 
 type WorldState struct {
-	Players []*types.Player
+	Players []*Player
 }
 
 type PlayerDisconnected struct {
