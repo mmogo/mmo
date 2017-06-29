@@ -5,25 +5,25 @@ import (
 
 	"bytes"
 	"flag"
+	"fmt"
 	"image"
+	"image/color"
 	"log"
-	"net/url"
+	"math"
+	"net"
 	"sync"
 	"time"
 
-	"fmt"
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
-	"github.com/gorilla/websocket"
 	"github.com/ilackarms/_anything/client/assets"
 	"github.com/ilackarms/_anything/shared"
 	"github.com/ilackarms/_anything/shared/constants"
 	"github.com/ilackarms/pkg/errors"
+	"github.com/xtaci/kcp-go"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
-	"image/color"
-	"math"
 )
 
 type simulation struct {
@@ -70,8 +70,7 @@ var (
 
 func run(addr, id string) error {
 	log.Printf("connecting to %s", addr)
-	u := url.URL{Scheme: "ws", Host: addr, Path: "/connect"}
-	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	conn, err := kcp.Dial(addr)
 	if err != nil {
 		return err
 	}
@@ -210,7 +209,7 @@ func loadPicture(path string) (pixel.Picture, error) {
 	return pixel.PictureDataFromImage(img), nil
 }
 
-func requestMove(direction pixel.Vec, conn *websocket.Conn) error {
+func requestMove(direction pixel.Vec, conn net.Conn) error {
 	msg := &shared.Message{
 		MoveRequest: &shared.MoveRequest{
 			Direction: direction,
@@ -220,7 +219,7 @@ func requestMove(direction pixel.Vec, conn *websocket.Conn) error {
 	return shared.SendMessage(msg, conn)
 }
 
-func requestSpeak(txt string, conn *websocket.Conn) error {
+func requestSpeak(txt string, conn net.Conn) error {
 	msg := &shared.Message{
 		SpeakRequest: &shared.SpeakRequest{
 			Text: txt,
@@ -229,7 +228,7 @@ func requestSpeak(txt string, conn *websocket.Conn) error {
 	return shared.SendMessage(msg, conn)
 }
 
-func handleConnection(conn *websocket.Conn) {
+func handleConnection(conn net.Conn) {
 	loop := func() error {
 		msg, err := shared.GetMessage(conn)
 		if err != nil {
@@ -305,7 +304,7 @@ func handlePlayerDisconnected(disconnected *shared.PlayerDisconnected) {
 	delete(players, disconnected.ID)
 }
 
-func processPlayerInput(conn *websocket.Conn, win *pixelgl.Window) error {
+func processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
 	if speechMode {
 		return processPlayerSpeechInput(conn, win)
 	}
@@ -350,7 +349,7 @@ func processPlayerInput(conn *websocket.Conn, win *pixelgl.Window) error {
 	return nil
 }
 
-func processPlayerSpeechInput(conn *websocket.Conn, win *pixelgl.Window) error {
+func processPlayerSpeechInput(conn net.Conn, win *pixelgl.Window) error {
 	currentSpeechBuffer += win.Typed()
 	if win.JustPressed(pixelgl.KeyBackspace) {
 		if len(currentSpeechBuffer) < 1 {

@@ -5,11 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"github.com/faiface/pixel"
-	"github.com/gorilla/websocket"
 	"github.com/ilackarms/_anything/shared"
 	"github.com/ilackarms/pkg/errors"
+	"github.com/xtaci/kcp-go"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -37,6 +38,7 @@ func main() {
 }
 
 func serveClient(port int, errc chan error) error {
+	laddr := fmt.Sprintf(":%v", port)
 	//get client checksums
 	clientChecksums := map[string]string{
 		"client-windows-4.0-amd64.exe": "",
@@ -67,27 +69,25 @@ func serveClient(port int, errc chan error) error {
 			http.FileServer(http.Dir(".")).ServeHTTP(w, req)
 		}),
 	)
-	http.Handle("/connect", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		conn, err := (&websocket.Upgrader{}).Upgrade(w, req, nil)
+	l, err := kcp.Listen(laddr)
+	if err != nil {
+		return err
+	}
+	log.Printf("listening for connections")
+	for {
+		conn, err := l.Accept()
 		if err != nil {
-			errc <- errors.New(fmt.Sprintf("failed to upgrade connection for %v", req), err)
-			return
+			errc <- errors.New("failed to establish connection", err)
+			continue
 		}
 		if err := handleConnection(conn); err != nil {
-			errc <- errors.New(fmt.Sprintf("error handling connection %v", req), err)
-			return
+			errc <- errors.New("error handling connection", err)
+			continue
 		}
-	}))
-	log.Printf("serving client")
-	if err := http.ListenAndServe(fmt.Sprintf(":%v", port), http.DefaultServeMux); err != nil {
-		return errors.New("failed listening on socket", err)
 	}
-	return nil
 }
 
-func handleConnection(conn *websocket.Conn) error {
-	//prevent messages that are too damn big
-	conn.SetReadLimit(maximumMessageSize)
+func handleConnection(conn net.Conn) error {
 	msg, err := shared.GetMessage(conn)
 	if err != nil {
 		return err
@@ -97,18 +97,6 @@ func handleConnection(conn *websocket.Conn) error {
 	}
 	id := msg.ConnectRequest.ID
 	pos := pixel.ZV
-	conn.SetCloseHandler(func(code int, text string) error {
-		log.Printf("Client %s disconnected: (%v) %s", id, code, text)
-		playersLock.Lock()
-		defer playersLock.Unlock()
-		delete(players, id)
-		queueUpdate(&update{
-			notifyPlayerDisconnected: &notifyPlayerDisconnected{
-				id: id,
-			},
-		})
-		return nil
-	})
 	playersLock.Lock()
 	defer playersLock.Unlock()
 	players[id] = &shared.ServerPlayer{
@@ -145,7 +133,9 @@ func handlePlayer(id string) {
 		msg, err := shared.GetMessage(conn)
 		if err != nil {
 			log.Print(errors.New(fmt.Sprintf("Client disconnected: (failed getting message for player %s)", id), err))
+			playersLock.Lock()
 			delete(players, id)
+			playersLock.Unlock()
 			queueUpdate(&update{
 				notifyPlayerDisconnected: &notifyPlayerDisconnected{
 					id: id,

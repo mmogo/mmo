@@ -2,14 +2,14 @@ package shared
 
 import (
 	"github.com/faiface/pixel"
-	"github.com/gorilla/websocket"
 	"image/color"
+	"net"
 	"sync"
 )
 
 type ServerPlayer struct {
 	*Player
-	Conn         *websocket.Conn
+	Conn         net.Conn
 	RequestQueue []*Message
 	QueueLock    sync.RWMutex
 }

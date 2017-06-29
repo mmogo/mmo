@@ -2,12 +2,14 @@ package shared
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/gob"
-	"github.com/gorilla/websocket"
+	"io"
+	"net"
 )
 
-func GetMessage(conn *websocket.Conn) (*Message, error) {
-	_, raw, err := conn.ReadMessage()
+func GetMessage(conn net.Conn) (*Message, error) {
+	raw, err := read(conn)
 	if err != nil {
 		return nil, err
 	}
@@ -19,7 +21,7 @@ func GetMessage(conn *websocket.Conn) (*Message, error) {
 	return &msg, nil
 }
 
-func SendMessage(msg *Message, conn *websocket.Conn) error {
+func SendMessage(msg *Message, conn net.Conn) error {
 	data, err := Encode(msg)
 	if err != nil {
 		return err
@@ -27,8 +29,13 @@ func SendMessage(msg *Message, conn *websocket.Conn) error {
 	return SendRaw(data, conn)
 }
 
-func SendRaw(data []byte, conn *websocket.Conn) error {
-	return conn.WriteMessage(websocket.BinaryMessage, data)
+func SendRaw(data []byte, conn net.Conn) error {
+	size := uint16(len(data))
+	sizeInBytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(sizeInBytes, size)
+	buf := append(sizeInBytes, data...)
+	_, err := conn.Write(buf)
+	return err
 }
 
 func Encode(e interface{}) ([]byte, error) {
@@ -36,4 +43,15 @@ func Encode(e interface{}) ([]byte, error) {
 	enc := gob.NewEncoder(buf)
 	err := enc.Encode(e)
 	return buf.Bytes(), err
+}
+
+func read(r io.Reader) ([]byte, error) {
+	sizeInBytes := make([]byte, 2)
+	if _, err := r.Read(sizeInBytes); err != nil {
+		return nil, err
+	}
+	size := binary.BigEndian.Uint16(sizeInBytes)
+	data := make([]byte, size)
+	_, err := r.Read(data)
+	return data, err
 }
