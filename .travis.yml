@@ -1,0 +1,19 @@
+language: go
+sudo: false
+addons:
+    apt:
+        packages:
+            - xorg-dev
+            - libx11-dev
+            - libxrandr-dev
+            - libxinerama-dev
+            - libxcursor-dev
+            - libxi-dev
+go:
+- 1.8.1
+install:
+- go get -d -t ./...
+script:
+- go test -i -race ./...
+- go test -v -race ./...
+
