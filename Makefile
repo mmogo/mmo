@@ -15,9 +15,9 @@ PATCHERSOURCES := $(shell find $(PATCHERDIR) -name '*.go')
 
 IMAGE=ilackarms/xgo-latest
 
-default: linux
+default: $(ASSETDIR)/assets.go linux
 
-all: linux windows darwin
+all: $(ASSETDIR)/assets.go linux windows darwin
 
 linux: $(OUTPUTDIR)/patcher-linux-amd64 \
        $(OUTPUTDIR)/server-linux-amd64 \
@@ -68,7 +68,6 @@ $(OUTPUTDIR)/login.txt:
 
 .PHONY: clean
 
-
 clean:
 	rm -rf bin
 	rm -f $(ASSETDIR)/assets.go
@@ -81,4 +80,7 @@ clean-assets:
 .PHONY: assets
 
 assets: clean-assets $(ASSETDIR)/assets.go
+
+dummy:
+	touch $(OUTPUTDIR)/client-windows-4.0-amd64.exe $(OUTPUTDIR)/client-darwin-10.6-amd64
 
