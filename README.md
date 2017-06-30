@@ -1,6 +1,4 @@
-# _anything
-
-Go to http://710107ec.ngrok.io
+# mmo-go
 
 Download the patcher for your platform along with login.txt
 

@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/faiface/pixel"
-	"github.com/ilackarms/_anything/shared"
+	"github.com/mmogo/mmo/shared"
 	"github.com/ilackarms/pkg/errors"
 	"github.com/xtaci/kcp-go"
 	"io"
