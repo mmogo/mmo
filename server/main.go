@@ -4,10 +4,6 @@ import (
 	"crypto/md5"
 	"flag"
 	"fmt"
-	"github.com/faiface/pixel"
-	"github.com/mmogo/mmo/shared"
-	"github.com/ilackarms/pkg/errors"
-	"github.com/xtaci/kcp-go"
 	"io"
 	"log"
 	"net"
@@ -15,6 +11,11 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/faiface/pixel"
+	"github.com/ilackarms/pkg/errors"
+	"github.com/mmogo/mmo/shared"
+	"github.com/xtaci/kcp-go"
 )
 
 const (
@@ -73,7 +74,7 @@ func serve(port int, errc chan error) error {
 			http.FileServer(http.Dir(".")).ServeHTTP(w, req)
 		}),
 	)
-	go func(){
+	go func() {
 		log.Printf("File server crashed: %v", http.ListenAndServe(laddr, mux))
 	}()
 	l, err := kcp.Listen(laddr)
@@ -292,7 +293,7 @@ func handleMoveRequest(id string, req *shared.MoveRequest) error {
 		return errors.New("requesting player "+id+" is nil??", nil)
 	}
 
-	player.Position = player.Position.Add(req.Direction)
+	player.Position = player.Position.Add(req.Direction.ToVec())
 	queueUpdate(&update{
 		notifyPlayerMoved: &notifyPlayerMoved{
 			id:          id,

@@ -225,7 +225,7 @@ func loadPicture(path string) (pixel.Picture, error) {
 	return pixel.PictureDataFromImage(img), nil
 }
 
-func requestMove(direction pixel.Vec, conn net.Conn) error {
+func requestMove(direction shared.Direction, conn net.Conn) error {
 	msg := &shared.Message{
 		MoveRequest: &shared.MoveRequest{
 			Direction: direction,
@@ -341,7 +341,7 @@ func processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
 		queueSimulation(func() {
 			setPlayerPosition(playerID, players[playerID].Position.Add(mousedir.ToVec()))
 		})
-		if err := requestMove(mousedir.ToVec(), conn); err != nil {
+		if err := requestMove(mousedir, conn); err != nil {
 			return err
 		}
 	}
@@ -351,7 +351,7 @@ func processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
 		queueSimulation(func() {
 			setPlayerPosition(playerID, players[playerID].Position.Add(LEFT.ToVec()))
 		})
-		if err := requestMove(LEFT.ToVec(), conn); err != nil {
+		if err := requestMove(LEFT, conn); err != nil {
 			return err
 		}
 	}
@@ -359,7 +359,7 @@ func processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
 		queueSimulation(func() {
 			setPlayerPosition(playerID, players[playerID].Position.Add(RIGHT.ToVec()))
 		})
-		if err := requestMove(RIGHT.ToVec(), conn); err != nil {
+		if err := requestMove(RIGHT, conn); err != nil {
 			return err
 		}
 	}
@@ -367,7 +367,7 @@ func processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
 		queueSimulation(func() {
 			setPlayerPosition(playerID, players[playerID].Position.Add(UP.ToVec()))
 		})
-		if err := requestMove(UP.ToVec(), conn); err != nil {
+		if err := requestMove(UP, conn); err != nil {
 			return err
 		}
 	}
@@ -375,7 +375,7 @@ func processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
 		queueSimulation(func() {
 			setPlayerPosition(playerID, players[playerID].Position.Add(DOWN.ToVec()))
 		})
-		if err := requestMove(DOWN.ToVec(), conn); err != nil {
+		if err := requestMove(DOWN, conn); err != nil {
 			return err
 		}
 	}
