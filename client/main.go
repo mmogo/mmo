@@ -20,10 +20,20 @@ import (
 	"github.com/ilackarms/pkg/errors"
 	"github.com/mmogo/mmo/client/assets"
 	"github.com/mmogo/mmo/shared"
-	"github.com/mmogo/mmo/shared/constants"
 	"github.com/xtaci/kcp-go"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
+)
+
+const (
+	UP        = shared.UP
+	DOWN      = shared.DOWN
+	LEFT      = shared.LEFT
+	RIGHT     = shared.RIGHT
+	UPLEFT    = shared.UPLEFT
+	UPRIGHT   = shared.UPRIGHT
+	DOWNLEFT  = shared.DOWNLEFT
+	DOWNRIGHT = shared.DOWNRIGHT
 )
 
 type simulation struct {
@@ -319,36 +329,53 @@ func processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
 		return nil
 	}
 
-	//movement
+	// mouse movement
+	mousedir := shared.DIR_NONE
+	if win.Pressed(pixelgl.MouseButtonLeft) {
+		center := pixel.IM.Moved(win.Bounds().Center())
+		mouse := center.Unproject(win.MousePosition())
+		mousedir = shared.UnitToDirection(mouse.Unit())
+	}
+
+	if mousedir != shared.DIR_NONE {
+		queueSimulation(func() {
+			setPlayerPosition(playerID, players[playerID].Position.Add(mousedir.ToVec()))
+		})
+		if err := requestMove(mousedir.ToVec(), conn); err != nil {
+			return err
+		}
+	}
+
+	// key movement
 	if win.Pressed(pixelgl.KeyA) {
 		queueSimulation(func() {
-			setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Left))
+			setPlayerPosition(playerID, players[playerID].Position.Add(LEFT.ToVec()))
 		})
-		if err := requestMove(constants.Directions.Left, conn); err != nil {
+		if err := requestMove(LEFT.ToVec(), conn); err != nil {
 			return err
 		}
 	}
 	if win.Pressed(pixelgl.KeyD) {
 		queueSimulation(func() {
-			setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Right))
+			setPlayerPosition(playerID, players[playerID].Position.Add(RIGHT.ToVec()))
 		})
-		if err := requestMove(constants.Directions.Right, conn); err != nil {
+		if err := requestMove(RIGHT.ToVec(), conn); err != nil {
 			return err
 		}
 	}
 	if win.Pressed(pixelgl.KeyW) {
 		queueSimulation(func() {
-			setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Up))
+			setPlayerPosition(playerID, players[playerID].Position.Add(UP.ToVec()))
 		})
-		if err := requestMove(constants.Directions.Up, conn); err != nil {
+		if err := requestMove(UP.ToVec(), conn); err != nil {
 			return err
 		}
 	}
 	if win.Pressed(pixelgl.KeyS) {
 		queueSimulation(func() {
-			setPlayerPosition(playerID, players[playerID].Position.Add(constants.Directions.Down))
+			setPlayerPosition(playerID, players[playerID].Position.Add(DOWN.ToVec()))
 		})
-		if err := requestMove(constants.Directions.Down, conn); err != nil {
+		if err := requestMove(DOWN.ToVec(), conn); err != nil {
 			return err
 		}
 	}
