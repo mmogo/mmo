@@ -4,9 +4,29 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/gob"
+	"fmt"
 	"io"
+	"math"
 	"net"
+
+	"github.com/xtaci/kcp-go"
 )
+
+//func NewWebsocketListener(laddr string) (net.Listener, error) {
+//	return websocket.BinaryFrame
+//}
+
+func ListenUDP(laddr string) (net.Listener, error) {
+	return net.Listen("udp", laddr)
+}
+
+func ListenTCP(laddr string) (net.Listener, error) {
+	return net.Listen("tcp", laddr)
+}
+
+func ListenKCP(laddr string) (net.Listener, error) {
+	return kcp.Listen(laddr)
+}
 
 func GetMessage(conn net.Conn) (*Message, error) {
 	raw, err := read(conn)
@@ -30,11 +50,13 @@ func SendMessage(msg *Message, conn net.Conn) error {
 }
 
 func SendRaw(data []byte, conn net.Conn) error {
-	size := uint16(len(data))
+	size := len(data)
+	if size > math.MaxUint16 {
+		return fmt.Errorf("message size too large: %v", size)
+	}
 	sizeInBytes := make([]byte, 2)
-	binary.BigEndian.PutUint16(sizeInBytes, size)
-	buf := append(sizeInBytes, data...)
-	_, err := conn.Write(buf)
+	binary.BigEndian.PutUint16(sizeInBytes, uint16(size))
+	_, err := conn.Write(append(sizeInBytes, data...))
 	return err
 }
 
