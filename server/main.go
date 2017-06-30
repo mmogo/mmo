@@ -22,7 +22,6 @@ const (
 	tickTime       = 1.0 / ticksPerSecond
 
 	messagePerTickLimit = 60
-	maximumMessageSize  = 1024 * 1024 //1MB
 )
 
 func main() {
@@ -49,7 +48,7 @@ func serve(port int, errc chan error) error {
 	for client := range clientChecksums {
 		f, err := os.Open(client)
 		if err != nil {
-			return err
+			continue
 		}
 		h := md5.New()
 		if _, err := io.Copy(h, f); err != nil {
