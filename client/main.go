@@ -120,7 +120,7 @@ func run(addr, id string) error {
 
 	playerSprite := pixel.NewSprite(playerSheet, playerFrames[2])
 
-	FPS := 10.0
+	animationRate := 10.0 // framerate of player animation
 	elapsed := 0.0
 	fps := 0
 	second := time.Tick(time.Second)
@@ -140,7 +140,7 @@ func run(addr, id string) error {
 		applySimulations()
 
 		elapsed += dt
-		frameChange := 1.0 / FPS
+		frameChange := 1.0 / animationRate
 		frame := int(elapsed/frameChange) % len(playerFrames)
 		playerSprite = pixel.NewSprite(playerSheet, playerFrames[frame])
 		playerText := text.New(pixel.ZV, atlas)
