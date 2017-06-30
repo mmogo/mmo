@@ -22,14 +22,13 @@ const (
 	tickTime       = 1.0 / ticksPerSecond
 
 	messagePerTickLimit = 60
-	maximumMessageSize  = 1024 * 1024 //1MB
 )
 
 func main() {
 	port := flag.Int("p", 8080, "port to serve on")
 	flag.Parse()
 	errc := make(chan error)
-	go func() { errc <- serveClient(*port, errc) }()
+	go func() { errc <- serve(*port, errc) }()
 	go func() { gameLoop(errc) }()
 	select {
 	case err := <-errc:
@@ -37,7 +36,7 @@ func main() {
 	}
 }
 
-func serveClient(port int, errc chan error) error {
+func serve(port int, errc chan error) error {
 	laddr := fmt.Sprintf(":%v", port)
 	//get client checksums
 	clientChecksums := map[string]string{
@@ -49,7 +48,7 @@ func serveClient(port int, errc chan error) error {
 	for client := range clientChecksums {
 		f, err := os.Open(client)
 		if err != nil {
-			return err
+			continue
 		}
 		h := md5.New()
 		if _, err := io.Copy(h, f); err != nil {
@@ -58,8 +57,13 @@ func serveClient(port int, errc chan error) error {
 		clientChecksums[client] = string(h.Sum(nil))
 	}
 
-	http.Handle("/",
+	mux := http.NewServeMux()
+	mux.Handle("/",
 		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if req.Method != "GET" {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 			for client, checksum := range clientChecksums {
 				if strings.Contains(req.URL.Path, client) && req.URL.Query().Get("checksum") == checksum {
 					w.WriteHeader(http.StatusNoContent)
@@ -69,11 +73,14 @@ func serveClient(port int, errc chan error) error {
 			http.FileServer(http.Dir(".")).ServeHTTP(w, req)
 		}),
 	)
+	go func(){
+		log.Printf("File server crashed: %v", http.ListenAndServe(laddr, mux))
+	}()
 	l, err := kcp.Listen(laddr)
 	if err != nil {
 		return err
 	}
-	log.Printf("listening for connections")
+	log.Printf("listening for connections on %v", port)
 	for {
 		conn, err := l.Accept()
 		if err != nil {

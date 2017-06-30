@@ -17,10 +17,10 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
+	"github.com/ilackarms/pkg/errors"
 	"github.com/mmogo/mmo/client/assets"
 	"github.com/mmogo/mmo/shared"
 	"github.com/mmogo/mmo/shared/constants"
-	"github.com/ilackarms/pkg/errors"
 	"github.com/xtaci/kcp-go"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
@@ -102,28 +102,28 @@ func run(addr, id string) error {
 	if err != nil {
 		return errors.New("creating wiondow", err)
 	}
-	guysleyImage, err := loadPicture("guysley.png")
+	lootImage, err := loadPicture("sprites/loot.png")
 	if err != nil {
 		return err
 	}
-	guysleySprite := pixel.NewSprite(guysleyImage, guysleyImage.Bounds())
+	lootSprite := pixel.NewSprite(lootImage, lootImage.Bounds())
 
-	mrmanSheet, err := loadPicture("mrman.png")
+	playerSheet, err := loadPicture("sprites/player.png")
 	if err != nil {
 		return err
 	}
-	mrmanFrames := []pixel.Rect{
+	playerFrames := []pixel.Rect{
 		pixel.R(0, 0, 64, 64),
 		pixel.R(0, 64, 64, 128),
 		pixel.R(64, 64, 128, 128),
 	}
 
-	mrManSprite := pixel.NewSprite(mrmanSheet, mrmanFrames[2])
+	playerSprite := pixel.NewSprite(playerSheet, playerFrames[2])
 
-	FPS := 10.0
+	animationRate := 10.0 // framerate of player animation
 	elapsed := 0.0
-
-	angle := 0.0
+	fps := 0
+	second := time.Tick(time.Second)
 	last := time.Now()
 
 	atlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
@@ -139,21 +139,18 @@ func run(addr, id string) error {
 
 		applySimulations()
 
-		angle += 3 * dt
-
 		elapsed += dt
-		frameChange := 1.0 / FPS
-		frame := int(elapsed/frameChange) % len(mrmanFrames)
-		mrManSprite = pixel.NewSprite(mrmanSheet, mrmanFrames[frame])
+		frameChange := 1.0 / animationRate
+		frame := int(elapsed/frameChange) % len(playerFrames)
+		playerSprite = pixel.NewSprite(playerSheet, playerFrames[frame])
 		playerText := text.New(pixel.ZV, atlas)
 
-		guysleySprite.Draw(win, pixel.IM.Rotated(pixel.ZV, angle))
+		lootSprite.Draw(win, pixel.IM.Scaled(pixel.ZV, 2.0))
 		lock.RLock()
 		pos := players[id].Position
 		for _, player := range players {
-			mrManPos := pixel.IM.Moved(pixel.V(player.Position.X, player.Position.Y))
-			//mrManSprite.Draw(win, mrManPos)
-			mrManSprite.DrawColorMask(win, mrManPos, player.Color)
+			playerPos := pixel.IM.Moved(pixel.V(player.Position.X, player.Position.Y))
+			playerSprite.DrawColorMask(win, playerPos, player.Color)
 			speechLock.RLock()
 			txt, ok := playerSpeech[player.ID]
 			speechLock.RUnlock()
@@ -165,7 +162,7 @@ func run(addr, id string) error {
 					playerText.Dot.Y += playerText.BoundsOf(line).H() * float64(len(txt)-i)
 					playerText.WriteString(line + "\n")
 					playerText.DrawColorMask(win,
-						pixel.IM.Scaled(pixel.ZV, 2).Chained(mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20))),
+						pixel.IM.Scaled(pixel.ZV, 2).Chained(playerPos.Moved(pixel.V(0, playerText.Bounds().H()+20))),
 						player.Color)
 				}
 			}
@@ -177,7 +174,7 @@ func run(addr, id string) error {
 				playerText.Dot.X -= playerText.BoundsOf(currentSpeechBuffer+"_").W() / 2
 				playerText.WriteString(currentSpeechBuffer + "_")
 				playerText.DrawColorMask(win,
-					pixel.IM.Scaled(pixel.ZV, 2).Chained(mrManPos.Moved(pixel.V(0, playerText.Bounds().H()+20))),
+					pixel.IM.Scaled(pixel.ZV, 2).Chained(playerPos.Moved(pixel.V(0, playerText.Bounds().H()+20))),
 					colornames.White)
 			}
 		}
@@ -192,6 +189,15 @@ func run(addr, id string) error {
 
 		win.SetMatrix(cam)
 		win.Update()
+
+		fps++
+		select {
+		default:
+		case <-second:
+			win.SetTitle(fmt.Sprintf("%v fps", fps))
+			fps = 0
+		}
+
 	}
 	return nil
 }
