@@ -81,6 +81,3 @@ clean-assets:
 
 assets: clean-assets $(ASSETDIR)/assets.go
 
-dummy:
-	touch $(OUTPUTDIR)/client-windows-4.0-amd64.exe $(OUTPUTDIR)/client-darwin-10.6-amd64
-
