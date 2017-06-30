@@ -15,7 +15,9 @@ PATCHERSOURCES := $(shell find $(PATCHERDIR) -name '*.go')
 
 IMAGE=ilackarms/xgo-latest
 
-all: linux windows darwin
+default: $(ASSETDIR)/assets.go linux
+
+all: $(ASSETDIR)/assets.go linux windows darwin
 
 linux: $(OUTPUTDIR)/patcher-linux-amd64 \
        $(OUTPUTDIR)/server-linux-amd64 \
@@ -47,7 +49,7 @@ $(OUTPUTDIR)/client-linux-amd64: $(CLIENTSOURCES)
 
 $(ASSETDIR)/assets.go: $(ASSETS)
 	cd $(CLIENTDIR) && \
-	go-bindata -o assets/assets.go -pkg assets -prefix assets/ assets/
+	go-bindata -o assets/assets.go -pkg assets -prefix assets/ assets/...
 
 $(OUTPUTDIR)/client-windows-4.0-amd64.exe: $(CLIENTSOURCES)
 	xgo -image $(IMAGE) -dest=bin -targets=windows/amd64 -pkg ./client .
@@ -65,5 +67,17 @@ $(OUTPUTDIR)/login.txt:
 	echo "server=$(SERVERADDR)" > $@
 
 .PHONY: clean
+
+clean:
 	rm -rf bin
-	rm $(ASSETDIR)/assets.go
+	rm -f $(ASSETDIR)/assets.go
+
+.PHONY: clean-assets
+
+clean-assets:
+	rm -f $(ASSETDIR)/assets.go
+
+.PHONY: assets
+
+assets: clean-assets $(ASSETDIR)/assets.go
+
