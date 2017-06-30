@@ -7,11 +7,13 @@ ASSETDIR=$(CLIENTDIR)/assets
 ASSETS := $(shell find $(SOURCEDIR)/client/assets -name assets.go -prune -o -print)
 OUTPUTDIR := $(SOURCEDIR)/bin
 
-SERVERADDR := 710107ec.ngrok.io
+SERVERADDR := localhost
 
 CLIENTSOURCES := $(shell find $(CLIENTDIR) $(SHAREDDIR) -name '*.go')
 SERVERSOURCES := $(shell find $(SERVERDIR) $(SHAREDDIR) -name '*.go')
 PATCHERSOURCES := $(shell find $(PATCHERDIR) -name '*.go')
+
+IMAGE=ilackarms/xgo-latest
 
 all: linux windows darwin
 
@@ -48,16 +50,16 @@ $(ASSETDIR)/assets.go: $(ASSETS)
 	go-bindata -o assets/assets.go -pkg assets -prefix assets/ assets/
 
 $(OUTPUTDIR)/client-windows-4.0-amd64.exe: $(CLIENTSOURCES)
-	xgo -dest=bin -targets=windows/amd64 -pkg ./client .
+	xgo -image $(IMAGE) -dest=bin -targets=windows/amd64 -pkg ./client .
 
 $(OUTPUTDIR)/patcher-windows-4.0-amd64.exe: $(PATCHERSOURCES)
-	xgo -dest=bin -targets=windows/amd64 -pkg ./patcher .
+	xgo -image $(IMAGE) -dest=bin -targets=windows/amd64 -pkg ./patcher .
 
 $(OUTPUTDIR)/client-darwin-10.6-amd64: $(CLIENTSOURCES)
-	xgo -dest=bin -targets=darwin/amd64 -pkg ./client .
+	xgo -image $(IMAGE) -dest=bin -targets=darwin/amd64 -pkg ./client .
 
 $(OUTPUTDIR)/patcher-darwin-10.6-amd64: $(PATCHERSOURCES)
-	xgo -dest=bin -targets=darwin/amd64 -pkg ./patcher .
+	xgo -image $(IMAGE) -dest=bin -targets=darwin/amd64 -pkg ./patcher .
 
 $(OUTPUTDIR)/login.txt:
 	echo "server=$(SERVERADDR)" > $@
