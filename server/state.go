@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/ilackarms/_anything/shared"
+	"github.com/mmogo/mmo/shared"
 	"sync"
 )
 

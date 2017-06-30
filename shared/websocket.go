@@ -23,7 +23,7 @@ func (c *wsConn) Write(p []byte) (n int, err error) {
 func (c *wsConn) Read(p []byte) (n int, err error) {
 	_, data, err := c.ReadMessage()
 	if err != nil {
-		return nil, err
+		return len(data), err
 	}
 	size := 0
 	for i := range p {
