@@ -149,8 +149,8 @@ func run(addr, id string) error {
 	second := time.Tick(time.Second)
 	last := time.Now()
 	atlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
-	center := win.Bounds().Center()
-	g.centerMatrix = pixel.IM.Moved(center)
+	g.wincenter = win.Bounds().Center()
+	g.centerMatrix = pixel.IM.Moved(g.wincenter)
 
 	for !win.Closed() {
 		win.Clear(colornames.Darkblue)
@@ -204,7 +204,7 @@ func run(addr, id string) error {
 		}
 		g.lock.RUnlock()
 
-		cam := pixel.IM.Moved(center.Sub(pixel.V(pos.X, pos.Y)))
+		cam := pixel.IM.Moved(g.wincenter.Sub(pixel.V(pos.X, pos.Y)))
 
 		playerText.Clear()
 		// show mouse coordinates
