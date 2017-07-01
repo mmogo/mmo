@@ -18,6 +18,10 @@ import (
 	"github.com/xtaci/kcp-go"
 )
 
+func init() {
+	log.SetFlags(log.Lmicroseconds | log.Lshortfile)
+}
+
 const (
 	ticksPerSecond = 10
 	tickTime       = 1.0 / ticksPerSecond
@@ -31,9 +35,17 @@ func main() {
 	errc := make(chan error)
 	go func() { errc <- serve(*port, errc) }()
 	go func() { gameLoop(errc) }()
-	select {
-	case err := <-errc:
-		log.Fatal("error somewhere", err)
+	for {
+		select {
+		case err := <-errc:
+
+			if strings.HasPrefix(err.Error(), "fatal") {
+				log.Fatal(err)
+			} else {
+				log.Println("error:", err)
+			}
+
+		}
 	}
 }
 
@@ -71,16 +83,27 @@ func serve(port int, errc chan error) error {
 					w.WriteHeader(http.StatusNoContent)
 					return
 				}
+				if req.URL.Path == "/"+client {
+					clientfile, err := os.Open(client)
+					if err == nil {
+						io.Copy(w, clientfile)
+					}
+					return
+				}
+
 			}
-			http.FileServer(http.Dir(".")).ServeHTTP(w, req)
+
+			http.NotFound(w, req)
 		}),
 	)
-	go func() {
-		log.Printf("File server crashed: %v", http.ListenAndServe(laddr, mux))
-	}()
+	if len(clientChecksums) > 0 {
+		go func() {
+			log.Printf("fileserver crashed: %v", http.ListenAndServe(laddr, mux))
+		}()
+	}
 	l, err := kcp.Listen(laddr)
 	if err != nil {
-		return err
+		return fmt.Errorf("fatal: %v", err)
 	}
 	log.Printf("listening for connections on %v", port)
 	for {
@@ -97,18 +120,36 @@ func serve(port int, errc chan error) error {
 }
 
 func handleConnection(conn net.Conn) error {
+	// read message
 	msg, err := shared.GetMessage(conn)
 	if err != nil {
+		if strings.Contains(err.Error(), "timeout") {
+			return nil
+		}
 		return err
 	}
+
+	// check first message is ConnectRequest
+	if msg.Request == nil || msg.Request.ConnectRequest == nil {
+		return errors.New("expected first message to be ConnectRequest", nil)
+	}
+
+	// get ID
+	id := msg.Request.ConnectRequest.ID
+
+	log.Println(id, "trying to connect")
+	// check if in use
+	/*	if _, taken := players[id]; taken {
+		return fmt.Errorf("Player ID %q in use", id)
+	} */
+
+	// echo back connect message
 	err = shared.SendMessage(msg, conn)
 	if err != nil {
 		return err
 	}
-	if msg.Request == nil || msg.Request.ConnectRequest == nil {
-		return errors.New("expected first message to be ConnectRequest", nil)
-	}
-	id := msg.Request.ConnectRequest.ID
+
+	log.Println(id, "trying to connectgetting lock")
 	pos := pixel.ZV
 	playersLock.Lock()
 	defer playersLock.Unlock()
@@ -119,6 +160,9 @@ func handleConnection(conn net.Conn) error {
 		},
 		Conn: conn,
 	}
+	log.Println(id, "trying to connect got lock")
+
+	// move to (0,0)
 	queueUpdate(&update{
 		notifyPlayerMoved: &notifyPlayerMoved{
 			id:          id,
@@ -126,12 +170,18 @@ func handleConnection(conn net.Conn) error {
 			requestTime: time.Now(),
 		},
 	})
+
+	log.Println(id, "trying to connect")
+	// send world state to player
 	queueUpdate(&update{
 		notifyWorldState: &notifyWorldState{
 			targetID: id,
 		},
 	})
+
+	// handle player in goroutine
 	go handlePlayer(id)
+
 	log.Printf("new connected player %s from %s", id, conn.RemoteAddr().String())
 	return nil
 }
@@ -157,9 +207,11 @@ func handlePlayer(id string) {
 			continue
 		}
 		log.Printf("%s %q", msg, id)
-		player.QueueLock.Lock()
-		player.RequestQueue = append(player.RequestQueue, msg)
-		player.QueueLock.Unlock()
+		if msg.Request != nil {
+			player.QueueLock.Lock()
+			player.RequestQueue = append(player.RequestQueue, msg)
+			player.QueueLock.Unlock()
+		}
 	}
 }
 
@@ -177,7 +229,7 @@ func gameLoop(errc chan error) {
 		if err := tick(); err != nil {
 			log.Printf("ERROR IN TICK: %v", err)
 			//TODO: handle tick errors
-			//errc <- err
+			errc <- err
 		}
 	}
 }
@@ -186,11 +238,13 @@ func tick() error {
 	for id, player := range players {
 		player.QueueLock.Lock()
 		for _, msg := range player.RequestQueue {
-			switch {
-			case msg.Request.MoveRequest != nil:
-				handleMoveRequest(id, msg.Request.MoveRequest)
-			case msg.Request.SpeakRequest != nil:
-				handleSpeakRequest(id, msg.Request.SpeakRequest)
+			if msg.Request != nil {
+				switch {
+				case msg.Request.MoveRequest != nil:
+					handleMoveRequest(id, msg.Request.MoveRequest)
+				case msg.Request.SpeakRequest != nil:
+					handleSpeakRequest(id, msg.Request.SpeakRequest)
+				}
 			}
 		}
 		player.RequestQueue = []*shared.Message{}
@@ -262,6 +316,16 @@ func sendWorldState(id string) error {
 	player, ok := players[id]
 	playersLock.RUnlock()
 	if !ok {
+		log.Print(errors.New(fmt.Sprintf("Client disconnected: (cant find ID: %s)", id), nil))
+		playersLock.Lock()
+		delete(players, id)
+		playersLock.Unlock()
+		queueUpdate(&update{
+			notifyPlayerDisconnected: &notifyPlayerDisconnected{
+				id: id,
+			},
+		})
+
 		return errors.New("player "+id+" not found", nil)
 	}
 	return shared.SendMessage(&shared.Message{
@@ -285,6 +349,8 @@ func broadcast(msg *shared.Message) error {
 	playersLock.RLock()
 	defer playersLock.RUnlock()
 	for _, player := range players {
+		log.Printf("sending update: %s to %s", msg, player.Player.ID)
+		player.Conn.SetDeadline(time.Now().Add(time.Second))
 		if err := shared.SendRaw(data, player.Conn); err != nil {
 			return err
 		}
