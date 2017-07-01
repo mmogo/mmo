@@ -195,7 +195,7 @@ func run(addr, id string) error {
 					playerText.Dot.Y += playerText.BoundsOf(line).H() * float64(len(txt)-i)
 					playerText.WriteString(line + "\n")
 					playerText.DrawColorMask(win,
-						pixel.IM.Scaled(pixel.ZV, 2).Chained(playerPos.Moved(pixel.V(0, playerText.Bounds().H()+20))),
+						pixel.IM.Scaled(pixel.ZV, 2).Moved(pixel.V(player.Position.X, player.Position.Y+20)),
 						player.Color)
 				}
 			}
@@ -207,7 +207,7 @@ func run(addr, id string) error {
 				playerText.Dot.X -= playerText.BoundsOf(g.currentSpeechBuffer+"_").W() / 2
 				playerText.WriteString(g.currentSpeechBuffer + "_")
 				playerText.DrawColorMask(win,
-					pixel.IM.Scaled(pixel.ZV, 2).Chained(playerPos.Moved(pixel.V(0, playerText.Bounds().H()+20))),
+					pixel.IM.Scaled(pixel.ZV, 2).Moved(pixel.V(player.Position.X, player.Position.Y+40)),
 					colornames.White)
 			}
 		}
