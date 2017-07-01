@@ -1,8 +1,9 @@
 package shared
 
 import (
-	"github.com/faiface/pixel"
 	"time"
+
+	"github.com/faiface/pixel"
 )
 
 type Message struct {
@@ -21,7 +22,7 @@ type ConnectRequest struct {
 }
 
 type MoveRequest struct {
-	Direction pixel.Vec
+	Direction Direction
 	Created   time.Time
 }
 
