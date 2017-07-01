@@ -44,6 +44,7 @@ type simulation struct {
 var simulations []*simulation
 var runSimulations []*simulation
 var simLock sync.Mutex
+var center pixel.Matrix
 
 func main() {
 	addr := flag.String("addr", "localhost:8080", "address for websocket connection")
@@ -112,6 +113,7 @@ func run(addr, id string) error {
 	if err != nil {
 		return errors.New("creating wiondow", err)
 	}
+	center = pixel.IM.Moved(win.Bounds().Center())
 	lootImage, err := loadPicture("sprites/loot.png")
 	if err != nil {
 		return err
@@ -332,7 +334,6 @@ func processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
 	// mouse movement
 	mousedir := shared.DIR_NONE
 	if win.Pressed(pixelgl.MouseButtonLeft) {
-		center := pixel.IM.Moved(win.Bounds().Center())
 		mouse := center.Unproject(win.MousePosition())
 		mousedir = shared.UnitToDirection(mouse.Unit())
 	}
