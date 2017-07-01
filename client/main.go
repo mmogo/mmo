@@ -57,7 +57,7 @@ type GameWorld struct {
 }
 
 func main() {
-	addr := flag.String("addr", "localhost:8080", "address for websocket connection")
+	addr := flag.String("addr", "localhost:8080", "address of server")
 	id := flag.String("id", "", "playerid to use")
 	flag.Parse()
 	if *id == "" {
@@ -87,24 +87,31 @@ func NewGame() *GameWorld {
 }
 
 func run(addr, id string) error {
+
 	log.Printf("connecting to %s", addr)
 	conn, err := kcp.Dial(addr)
 	if err != nil {
 		return err
 	}
+
 	connectionRequest := &shared.ConnectRequest{
 		ID: id,
 	}
-
-	g := NewGame()
-	g.playerID = id
-
 	if err := shared.SendMessage(&shared.Message{
-		ConnectRequest: connectionRequest,
-	}, conn); err != nil {
+		Request: &shared.Request{
+			ConnectRequest: connectionRequest,
+		}}, conn); err != nil {
 		return err
 	}
 
+	msg, err := shared.GetMessage(conn)
+	if err != nil {
+		return err
+	}
+	log.Println("server replied:", msg)
+
+	g := NewGame()
+	g.playerID = id
 	go func() { g.handleConnection(conn) }()
 	g.lock.Lock()
 	g.players[id] = &shared.ClientPlayer{
@@ -242,19 +249,19 @@ func loadPicture(path string) (pixel.Picture, error) {
 
 func requestMove(direction shared.Direction, conn net.Conn) error {
 	msg := &shared.Message{
-		MoveRequest: &shared.MoveRequest{
+		Request: &shared.Request{MoveRequest: &shared.MoveRequest{
 			Direction: direction,
 			Created:   time.Now(),
 		},
-	}
+		}}
 	return shared.SendMessage(msg, conn)
 }
 
 func requestSpeak(txt string, conn net.Conn) error {
 	msg := &shared.Message{
-		SpeakRequest: &shared.SpeakRequest{
+		Request: &shared.Request{SpeakRequest: &shared.SpeakRequest{
 			Text: txt,
-		},
+		}},
 	}
 	return shared.SendMessage(msg, conn)
 }
