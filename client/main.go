@@ -89,14 +89,15 @@ func NewGame() *GameWorld {
 func run(addr, id string) error {
 
 	log.Printf("connecting to %s", addr)
+
 	conn, err := kcp.Dial(addr)
 	if err != nil {
 		return err
 	}
-
 	connectionRequest := &shared.ConnectRequest{
 		ID: id,
 	}
+
 	if err := shared.SendMessage(&shared.Message{
 		Request: &shared.Request{
 			ConnectRequest: connectionRequest,
@@ -154,6 +155,7 @@ func run(addr, id string) error {
 	elapsed := 0.0        // time elapsed total
 	fps := 0              // calculated frames per second
 	second := time.Tick(time.Second)
+	ping := time.Tick(time.Second * 2)
 	last := time.Now()
 	atlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
 	g.wincenter = win.Bounds().Center()
@@ -225,6 +227,9 @@ func run(addr, id string) error {
 		fps++
 		select {
 		default:
+		case <-ping:
+			shared.SendMessage(&shared.Message{}, conn)
+
 		case <-second:
 			win.SetTitle(fmt.Sprintf("%v fps", fps))
 			fps = 0
@@ -272,15 +277,20 @@ func (g *GameWorld) handleConnection(conn net.Conn) {
 		if err != nil {
 			return err
 		}
+		log.Println("RECV", msg)
 		switch {
 		case msg.PlayerMoved != nil:
 			g.handlePlayerMoved(msg.PlayerMoved)
+			return nil
 		case msg.PlayerSpoke != nil:
 			g.handlePlayerSpoke(msg.PlayerSpoke)
+			return nil
 		case msg.WorldState != nil:
 			g.handleWorldState(msg.WorldState)
+			return nil
 		case msg.PlayerDisconnected != nil:
 			g.handlePlayerDisconnected(msg.PlayerDisconnected)
+			return nil
 		}
 		return nil
 	}
@@ -289,6 +299,7 @@ func (g *GameWorld) handleConnection(conn net.Conn) {
 			g.errc <- err
 			continue
 		}
+
 	}
 }
 
