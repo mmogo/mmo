@@ -56,6 +56,7 @@ func serve(port int, errc chan error) error {
 			return err
 		}
 		clientChecksums[client] = string(h.Sum(nil))
+		log.Printf("serving client: %s", client)
 	}
 
 	mux := http.NewServeMux()
@@ -100,10 +101,14 @@ func handleConnection(conn net.Conn) error {
 	if err != nil {
 		return err
 	}
-	if msg.ConnectRequest == nil {
+	err = shared.SendMessage(msg, conn)
+	if err != nil {
+		return err
+	}
+	if msg.Request == nil || msg.Request.ConnectRequest == nil {
 		return errors.New("expected first message to be ConnectRequest", nil)
 	}
-	id := msg.ConnectRequest.ID
+	id := msg.Request.ConnectRequest.ID
 	pos := pixel.ZV
 	playersLock.Lock()
 	defer playersLock.Unlock()
@@ -151,6 +156,7 @@ func handlePlayer(id string) {
 			})
 			continue
 		}
+		log.Printf("%s %q", msg, id)
 		player.QueueLock.Lock()
 		player.RequestQueue = append(player.RequestQueue, msg)
 		player.QueueLock.Unlock()
@@ -181,10 +187,10 @@ func tick() error {
 		player.QueueLock.Lock()
 		for _, msg := range player.RequestQueue {
 			switch {
-			case msg.MoveRequest != nil:
-				handleMoveRequest(id, msg.MoveRequest)
-			case msg.SpeakRequest != nil:
-				handleSpeakRequest(id, msg.SpeakRequest)
+			case msg.Request.MoveRequest != nil:
+				handleMoveRequest(id, msg.Request.MoveRequest)
+			case msg.Request.SpeakRequest != nil:
+				handleSpeakRequest(id, msg.Request.SpeakRequest)
 			}
 		}
 		player.RequestQueue = []*shared.Message{}
@@ -271,6 +277,7 @@ func broadcastPlayerDisconnected(id string) error {
 }
 
 func broadcast(msg *shared.Message) error {
+	log.Println(msg)
 	data, err := shared.Encode(msg)
 	if err != nil {
 		return err
