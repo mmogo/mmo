@@ -8,6 +8,7 @@ import (
 )
 
 type Message struct {
+	Sent               time.Time
 	Request            *Request
 	PlayerMoved        *PlayerMoved
 	PlayerSpoke        *PlayerSpoke
@@ -73,6 +74,12 @@ func (m Message) String() string {
 	if m.PlayerDisconnected != nil {
 		return fmt.Sprintf("PlayerDisconnected: %s", m.PlayerDisconnected)
 	}
+
+	if !m.Sent.IsZero() {
+
+		return fmt.Sprintf("Ping: %s", m.Sent)
+	}
+
 	return "empty packet"
 }
 
