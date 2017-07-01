@@ -283,21 +283,21 @@ func tick() error {
 
 func broadcastPlayerMoved(id string, newPos pixel.Vec, requestTime time.Time) error {
 	playerMoved := &shared.Message{
-		PlayerMoved: &shared.PlayerMoved{
+		Update: &shared.Update{PlayerMoved: &shared.PlayerMoved{
 			ID:          id,
 			NewPosition: newPos,
 			RequestTime: requestTime,
-		},
+		}},
 	}
 	return broadcast(playerMoved)
 }
 
 func broadcastPlayerSpoke(id string, txt string) error {
 	playerSpoke := &shared.Message{
-		PlayerSpoke: &shared.PlayerSpoke{
+		Update: &shared.Update{PlayerSpoke: &shared.PlayerSpoke{
 			ID:   id,
 			Text: txt,
-		},
+		}},
 	}
 	return broadcast(playerSpoke)
 }
@@ -329,13 +329,12 @@ func sendWorldState(id string) error {
 		return errors.New("player "+id+" not found", nil)
 	}
 	return shared.SendMessage(&shared.Message{
-		WorldState: &shared.WorldState{Players: ps},
-	}, player.Conn)
+		Update: &shared.Update{WorldState: &shared.WorldState{Players: ps}}}, player.Conn)
 }
 
 func broadcastPlayerDisconnected(id string) error {
 	playerDisconnected := &shared.Message{
-		PlayerDisconnected: &shared.PlayerDisconnected{ID: id},
+		Update: &shared.Update{PlayerDisconnected: &shared.PlayerDisconnected{ID: id}},
 	}
 	return broadcast(playerDisconnected)
 }

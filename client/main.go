@@ -278,19 +278,21 @@ func (g *GameWorld) handleConnection(conn net.Conn) {
 			return err
 		}
 		log.Println("RECV", msg)
-		switch {
-		case msg.PlayerMoved != nil:
-			g.handlePlayerMoved(msg.PlayerMoved)
-			return nil
-		case msg.PlayerSpoke != nil:
-			g.handlePlayerSpoke(msg.PlayerSpoke)
-			return nil
-		case msg.WorldState != nil:
-			g.handleWorldState(msg.WorldState)
-			return nil
-		case msg.PlayerDisconnected != nil:
-			g.handlePlayerDisconnected(msg.PlayerDisconnected)
-			return nil
+		if msg.Update != nil {
+			switch {
+			case msg.Update.PlayerMoved != nil:
+				g.handlePlayerMoved(msg.Update.PlayerMoved)
+				return nil
+			case msg.Update.PlayerSpoke != nil:
+				g.handlePlayerSpoke(msg.Update.PlayerSpoke)
+				return nil
+			case msg.Update.WorldState != nil:
+				g.handleWorldState(msg.Update.WorldState)
+				return nil
+			case msg.Update.PlayerDisconnected != nil:
+				g.handlePlayerDisconnected(msg.Update.PlayerDisconnected)
+				return nil
+			}
 		}
 		return nil
 	}

@@ -8,8 +8,12 @@ import (
 )
 
 type Message struct {
-	Sent               time.Time
-	Request            *Request
+	Sent    time.Time
+	Request *Request
+	Update  *Update
+}
+
+type Update struct {
 	PlayerMoved        *PlayerMoved
 	PlayerSpoke        *PlayerSpoke
 	WorldState         *WorldState
@@ -59,28 +63,36 @@ func (m Message) String() string {
 		return m.Request.String()
 	}
 
-	if m.PlayerMoved != nil {
-		return fmt.Sprintf("PlayerMoved: %s: %s", m.PlayerMoved.ID, m.PlayerMoved.NewPosition)
-	}
-
-	if m.PlayerSpoke != nil {
-		return fmt.Sprintf("PlayerSpoke: %s: %s", m.PlayerSpoke.ID, m.PlayerSpoke.Text)
-	}
-
-	if m.WorldState != nil {
-
-		return fmt.Sprintf("WorldState: %v players", len(m.WorldState.Players))
-	}
-	if m.PlayerDisconnected != nil {
-		return fmt.Sprintf("PlayerDisconnected: %s", m.PlayerDisconnected)
+	if m.Update != nil {
+		return m.Update.String()
 	}
 
 	if !m.Sent.IsZero() {
-
 		return fmt.Sprintf("Ping: %s", m.Sent)
 	}
 
 	return "empty packet"
+}
+
+func (u Update) String() string {
+	if u.PlayerMoved != nil {
+		return fmt.Sprintf("PlayerMoved: %s: %s", u.PlayerMoved.ID, u.PlayerMoved.NewPosition)
+	}
+
+	if u.PlayerSpoke != nil {
+		return fmt.Sprintf("PlayerSpoke: %s: %s", u.PlayerSpoke.ID, u.PlayerSpoke.Text)
+	}
+
+	if u.WorldState != nil {
+
+		return fmt.Sprintf("WorldState: %v players", len(u.WorldState.Players))
+	}
+	if u.PlayerDisconnected != nil {
+		return fmt.Sprintf("PlayerDisconnected: %s", u.PlayerDisconnected)
+	}
+
+	return "empty update"
+
 }
 
 func (r Request) String() string {
