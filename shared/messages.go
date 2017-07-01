@@ -1,20 +1,24 @@
 package shared
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/faiface/pixel"
 )
 
 type Message struct {
-	ConnectRequest *ConnectRequest
-	MoveRequest    *MoveRequest
-	SpeakRequest   *SpeakRequest
-
+	Request            *Request
 	PlayerMoved        *PlayerMoved
 	PlayerSpoke        *PlayerSpoke
 	WorldState         *WorldState
 	PlayerDisconnected *PlayerDisconnected
+}
+
+type Request struct {
+	ConnectRequest *ConnectRequest
+	MoveRequest    *MoveRequest
+	SpeakRequest   *SpeakRequest
 }
 
 type ConnectRequest struct {
@@ -47,4 +51,41 @@ type WorldState struct {
 
 type PlayerDisconnected struct {
 	ID string
+}
+
+func (m Message) String() string {
+	if m.Request != nil {
+		return m.Request.String()
+	}
+
+	if m.PlayerMoved != nil {
+		return fmt.Sprintf("PlayerMoved: %s: %s", m.PlayerMoved.ID, m.PlayerMoved.NewPosition)
+	}
+
+	if m.PlayerSpoke != nil {
+		return fmt.Sprintf("PlayerSpoke: %s: %s", m.PlayerSpoke.ID, m.PlayerSpoke.Text)
+	}
+
+	if m.WorldState != nil {
+
+		return fmt.Sprintf("WorldState: %v players", len(m.WorldState.Players))
+	}
+	if m.PlayerDisconnected != nil {
+		return fmt.Sprintf("PlayerDisconnected: %s", m.PlayerDisconnected)
+	}
+	return "empty packet"
+}
+
+func (r Request) String() string {
+	if r.ConnectRequest != nil {
+		return fmt.Sprintf("ConnectRequest: %v", r.ConnectRequest.ID)
+	}
+	if r.MoveRequest != nil {
+		return fmt.Sprintf("MoveRequest: %s", r.MoveRequest.Direction)
+	}
+	if r.SpeakRequest != nil {
+		return fmt.Sprintf("SpeakRequest: %s", r.SpeakRequest.Text)
+	}
+
+	return "empty request"
 }
