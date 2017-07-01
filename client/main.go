@@ -52,7 +52,7 @@ type GameWorld struct {
 	simulations         []*simulation
 	runSimulations      []*simulation
 	simLock             sync.Mutex
-	center              pixel.Vec
+	wincenter           pixel.Vec
 	centerMatrix        pixel.Matrix
 }
 
