@@ -151,9 +151,9 @@ func run(addr, id string) error {
 	}
 	playerSprite := pixel.NewSprite(playerSheet, playerFrames[2])
 
-	animationRate := 10.0 // framerate of player animation
-	elapsed := 0.0        // time elapsed total
-	fps := 0              // calculated frames per second
+	animationRate := 1.0 // framerate of player animation
+	elapsed := 0.0       // time elapsed total
+	fps := 0             // calculated frames per second
 	second := time.Tick(time.Second)
 	ping := time.Tick(time.Second * 2)
 	last := time.Now()
@@ -297,19 +297,17 @@ func (g *GameWorld) ApplyUpdate(update *shared.Update) {
 		log.Println("nil update")
 		return
 	}
-	switch {
-	case update.PlayerMoved != nil:
+	if update.PlayerMoved != nil {
 		g.handlePlayerMoved(update.PlayerMoved)
-		return
-	case update.PlayerSpoke != nil:
+	}
+	if update.PlayerSpoke != nil {
 		g.handlePlayerSpoke(update.PlayerSpoke)
-		return
-	case update.WorldState != nil:
+	}
+	if update.WorldState != nil {
 		g.handleWorldState(update.WorldState)
-		return
-	case update.PlayerDisconnected != nil:
+	}
+	if update.PlayerDisconnected != nil {
 		g.handlePlayerDisconnected(update.PlayerDisconnected)
-		return
 	}
 
 }
