@@ -137,7 +137,6 @@ func handleConnection(conn net.Conn) error {
 	// get ID
 	id := msg.Request.ConnectRequest.ID
 
-	log.Println(id, "trying to connect")
 	// check if in use
 	/*	if _, taken := players[id]; taken {
 		return fmt.Errorf("Player ID %q in use", id)
@@ -149,7 +148,6 @@ func handleConnection(conn net.Conn) error {
 		return err
 	}
 
-	log.Println(id, "trying to connectgetting lock")
 	pos := pixel.ZV
 	playersLock.Lock()
 	defer playersLock.Unlock()
@@ -160,7 +158,6 @@ func handleConnection(conn net.Conn) error {
 		},
 		Conn: conn,
 	}
-	log.Println(id, "trying to connect got lock")
 
 	// move to (0,0)
 	queueUpdate(&update{
@@ -171,7 +168,6 @@ func handleConnection(conn net.Conn) error {
 		},
 	})
 
-	log.Println(id, "trying to connect")
 	// send world state to player
 	queueUpdate(&update{
 		notifyWorldState: &notifyWorldState{
