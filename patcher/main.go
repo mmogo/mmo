@@ -22,6 +22,7 @@ import (
 var addr = flag.String("addr", "localhost:8080", "http service address")
 var playerID = flag.String("id", "", "player id to use")
 var confFile = flag.String("conf", "login.txt", "login config file")
+var protocol = flag.String("protocol", "kcp", fmt.Sprintf("network protocol to use."))
 
 func main() {
 	flag.Parse()
@@ -92,7 +93,7 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	cmd := exec.Command(filepath.Join(cwd, clientName), "--addr", *addr, "--id", *playerID)
+	cmd := exec.Command(filepath.Join(cwd, clientName), "--addr", *addr, "--id", *playerID, "--protocol", *protocol)
 	cmd.Stdout = out
 	cmd.Stderr = out
 	if err := cmd.Run(); err != nil {
