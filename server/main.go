@@ -119,7 +119,7 @@ func serve(port int, errc chan error) error {
 }
 
 func handleConnection(conn net.Conn) error {
-	session, err := smux.Server(conn, nil)
+	session, err := smux.Server(conn, smux.DefaultConfig())
 	if err != nil {
 		return err
 	}

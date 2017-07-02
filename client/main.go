@@ -95,7 +95,7 @@ func run(addr, id string) error {
 	if err != nil {
 		return err
 	}
-	session, err := smux.Client(conn, nil)
+	session, err := smux.Client(conn, smux.DefaultConfig())
 	if err != nil {
 		return err
 	}
