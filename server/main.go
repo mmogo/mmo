@@ -309,16 +309,6 @@ func sendWorldState(id string) error {
 	player, ok := players[id]
 	playersLock.RUnlock()
 	if !ok {
-		log.Print(errors.New(fmt.Sprintf("Client disconnected: (cant find ID: %s)", id), nil))
-		playersLock.Lock()
-		delete(players, id)
-		playersLock.Unlock()
-		queueUpdate(&update{
-			notifyPlayerDisconnected: &notifyPlayerDisconnected{
-				id: id,
-			},
-		})
-
 		return errors.New("player "+id+" not found", nil)
 	}
 	return shared.SendMessage(&shared.Message{
