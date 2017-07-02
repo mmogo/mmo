@@ -16,6 +16,7 @@ import (
 	"github.com/ilackarms/pkg/errors"
 	"github.com/mmogo/mmo/shared"
 	"github.com/xtaci/smux"
+	"github.com/soheilhy/cmux"
 )
 
 func init() {
@@ -99,15 +100,32 @@ func serve(protocol string, port int, errc chan error) error {
 			http.NotFound(w, req)
 		}
 	})
-	if len(clientChecksums) > 0 {
-		go func() {
-			log.Printf("fileserver crashed: %v", http.ListenAndServe(laddr, mux))
-		}()
-	}
+
 	l, err := shared.Listen(protocol, laddr)
 	if err != nil {
 		return fmt.Errorf("fatal: %v", err)
 	}
+
+	if protocol == shared.ProtocolTCP {
+		// Create a cmux.
+		m := cmux.New(l)
+		httpL := m.Match(cmux.HTTP1Fast(), cmux.HTTP1())
+		l = m.Match(cmux.Any())
+		httpServer := &http.Server{
+			Handler: mux,
+		}
+		go func() {
+			go m.Serve()
+			log.Printf("HTTP server crashed: %v", httpServer.Serve(httpL))
+		}()
+	} else {
+		if len(clientChecksums) > 0 {
+			go func() {
+				log.Printf("fileserver crashed: %v", http.ListenAndServe(laddr, mux))
+			}()
+		}
+	}
+
 	log.Printf("listening for connections on %v", port)
 	for {
 		conn, err := l.Accept()

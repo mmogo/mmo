@@ -37,10 +37,10 @@ func Listen(protocol, laddr string) (net.Listener, error) {
 		return kcp.Listen(laddr)
 	case ProtocolUDP:
 		return net.Listen("udp", laddr)
-		//case ProtocolTCP:
-		//	return net.Listen("tcp", laddr)
+	case ProtocolTCP:
+		return net.Listen("tcp", laddr)
 	}
-	return nil, fmt.Errorf("invalid protcol %s. select from available: %s | %s | %s", ProtocolKCP, ProtocolUDP, ProtocolTCP)
+	return nil, fmt.Errorf("invalid protcol %s. select from available: %s | %s | %s ", ProtocolKCP, ProtocolUDP, ProtocolTCP)
 }
 
 func GetMessage(r io.Reader) (*Message, error) {
