@@ -20,6 +20,7 @@ import (
 	"github.com/mmogo/mmo/client/assets"
 	"github.com/mmogo/mmo/shared"
 	"github.com/xtaci/kcp-go"
+	"github.com/xtaci/smux"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
 )
@@ -94,6 +95,16 @@ func run(addr, id string) error {
 	if err != nil {
 		return err
 	}
+	session, err := smux.Client(conn, smux.DefaultConfig())
+	if err != nil {
+		return err
+	}
+	stream, err := session.OpenStream()
+	if err != nil {
+		return err
+	}
+	conn = stream
+
 	connectionRequest := &shared.ConnectRequest{
 		ID: id,
 	}

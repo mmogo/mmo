@@ -16,6 +16,7 @@ import (
 	"github.com/ilackarms/pkg/errors"
 	"github.com/mmogo/mmo/shared"
 	"github.com/xtaci/kcp-go"
+	"github.com/xtaci/smux"
 )
 
 func init() {
@@ -118,6 +119,18 @@ func serve(port int, errc chan error) error {
 }
 
 func handleConnection(conn net.Conn) error {
+	session, err := smux.Server(conn, smux.DefaultConfig())
+	if err != nil {
+		return err
+	}
+
+	stream, err := session.AcceptStream()
+	if err != nil {
+		return err
+	}
+
+	conn = stream
+
 	// read message
 	msg, err := shared.GetMessage(conn)
 	if err != nil {
