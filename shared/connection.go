@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"time"
 
 	"github.com/xtaci/kcp-go"
 )
@@ -29,6 +30,7 @@ func ListenKCP(laddr string) (net.Listener, error) {
 }
 
 func GetMessage(conn net.Conn) (*Message, error) {
+	conn.SetDeadline(time.Now().Add(time.Second * 3))
 	raw, err := read(conn)
 	if err != nil {
 		return nil, err
@@ -42,6 +44,7 @@ func GetMessage(conn net.Conn) (*Message, error) {
 }
 
 func SendMessage(msg *Message, conn net.Conn) error {
+	msg.Sent = time.Now()
 	data, err := Encode(msg)
 	if err != nil {
 		return err
@@ -50,6 +53,7 @@ func SendMessage(msg *Message, conn net.Conn) error {
 }
 
 func SendRaw(data []byte, conn net.Conn) error {
+	conn.SetDeadline(time.Now().Add(time.Second * 3))
 	size := len(data)
 	if size > math.MaxUint16 {
 		return fmt.Errorf("message size too large: %v", size)

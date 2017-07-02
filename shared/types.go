@@ -1,10 +1,11 @@
 package shared
 
 import (
-	"github.com/faiface/pixel"
 	"image/color"
 	"net"
 	"sync"
+
+	"github.com/faiface/pixel"
 )
 
 type ServerPlayer struct {
@@ -23,3 +24,5 @@ type Player struct {
 	ID       string
 	Position pixel.Vec
 }
+
+type FatalError error

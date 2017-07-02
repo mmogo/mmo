@@ -17,7 +17,6 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
-	"github.com/ilackarms/pkg/errors"
 	"github.com/mmogo/mmo/client/assets"
 	"github.com/mmogo/mmo/shared"
 	"github.com/xtaci/kcp-go"
@@ -41,13 +40,24 @@ type simulation struct {
 	created time.Time
 }
 
-var simulations []*simulation
-var runSimulations []*simulation
-var simLock sync.Mutex
-var center pixel.Matrix
+type GameWorld struct {
+	playerID            string
+	lock                sync.RWMutex
+	players             map[string]*shared.ClientPlayer
+	speechLock          sync.RWMutex
+	playerSpeech        map[string][]string
+	errc                chan error
+	speechMode          bool
+	currentSpeechBuffer string
+	simulations         []*simulation
+	runSimulations      []*simulation
+	simLock             sync.Mutex
+	wincenter           pixel.Vec
+	centerMatrix        pixel.Matrix
+}
 
 func main() {
-	addr := flag.String("addr", "localhost:8080", "address for websocket connection")
+	addr := flag.String("addr", "localhost:8080", "address of server")
 	id := flag.String("id", "", "playerid to use")
 	flag.Parse()
 	if *id == "" {
@@ -68,19 +78,18 @@ func Run(addr, id string) func() {
 	}
 }
 
-var (
-	playerID            string
-	lock                sync.RWMutex
-	players             = make(map[string]*shared.ClientPlayer)
-	speechLock          sync.RWMutex
-	playerSpeech        = make(map[string][]string)
-	errc                = make(chan error)
-	speechMode          bool
-	currentSpeechBuffer string
-)
+func NewGame() *GameWorld {
+	g := new(GameWorld)
+	g.players = make(map[string]*shared.ClientPlayer)
+	g.playerSpeech = make(map[string][]string)
+	g.errc = make(chan error)
+	return g
+}
 
 func run(addr, id string) error {
+
 	log.Printf("connecting to %s", addr)
+
 	conn, err := kcp.Dial(addr)
 	if err != nil {
 		return err
@@ -88,32 +97,43 @@ func run(addr, id string) error {
 	connectionRequest := &shared.ConnectRequest{
 		ID: id,
 	}
-	playerID = id
+
 	if err := shared.SendMessage(&shared.Message{
-		ConnectRequest: connectionRequest,
-	}, conn); err != nil {
+		Request: &shared.Request{
+			ConnectRequest: connectionRequest,
+		}}, conn); err != nil {
 		return err
 	}
-	go func() { handleConnection(conn) }()
-	lock.Lock()
-	players[id] = &shared.ClientPlayer{
+
+	msg, err := shared.GetMessage(conn)
+	if err != nil {
+		return err
+	}
+	log.Println("server replied:", msg)
+
+	g := NewGame()
+	g.playerID = id
+	go func() { g.handleConnection(conn) }()
+	g.lock.Lock()
+	g.players[id] = &shared.ClientPlayer{
 		Player: &shared.Player{
 			ID:       id,
 			Position: pixel.ZV,
 		},
 	}
-	lock.Unlock()
+	g.lock.Unlock()
 
 	cfg := pixelgl.WindowConfig{
-		Title:  "_anything",
+		Title:  "loading",
 		Bounds: pixel.R(0, 0, 800, 600),
 		VSync:  true,
 	}
 	win, err := pixelgl.NewWindow(cfg)
 	if err != nil {
-		return errors.New("creating wiondow", err)
+		return fmt.Errorf("creating window: %v", err)
 	}
-	center = pixel.IM.Moved(win.Bounds().Center())
+
+	// load assets
 	lootImage, err := loadPicture("sprites/loot.png")
 	if err != nil {
 		return err
@@ -129,27 +149,28 @@ func run(addr, id string) error {
 		pixel.R(0, 64, 64, 128),
 		pixel.R(64, 64, 128, 128),
 	}
-
 	playerSprite := pixel.NewSprite(playerSheet, playerFrames[2])
 
-	animationRate := 10.0 // framerate of player animation
-	elapsed := 0.0
-	fps := 0
+	animationRate := 1.0 // framerate of player animation
+	elapsed := 0.0       // time elapsed total
+	fps := 0             // calculated frames per second
 	second := time.Tick(time.Second)
+	ping := time.Tick(time.Second * 2)
 	last := time.Now()
-
 	atlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
+	g.wincenter = win.Bounds().Center()
+	g.centerMatrix = pixel.IM.Moved(g.wincenter)
 
 	for !win.Closed() {
 		win.Clear(colornames.Darkblue)
 		dt := time.Since(last).Seconds()
 		last = time.Now()
 
-		if err := processPlayerInput(conn, win); err != nil {
+		if err := g.processPlayerInput(conn, win); err != nil {
 			return err
 		}
 
-		applySimulations()
+		g.applySimulations()
 
 		elapsed += dt
 		frameChange := 1.0 / animationRate
@@ -158,14 +179,14 @@ func run(addr, id string) error {
 		playerText := text.New(pixel.ZV, atlas)
 
 		lootSprite.Draw(win, pixel.IM.Scaled(pixel.ZV, 2.0))
-		lock.RLock()
-		pos := players[id].Position
-		for _, player := range players {
+		g.lock.RLock()
+		pos := g.players[id].Position
+		for _, player := range g.players {
 			playerPos := pixel.IM.Moved(pixel.V(player.Position.X, player.Position.Y))
 			playerSprite.DrawColorMask(win, playerPos, player.Color)
-			speechLock.RLock()
-			txt, ok := playerSpeech[player.ID]
-			speechLock.RUnlock()
+			g.speechLock.RLock()
+			txt, ok := g.playerSpeech[player.ID]
+			g.speechLock.RUnlock()
 			if ok && len(txt) > 0 {
 				for i, line := range txt {
 					playerText.Clear()
@@ -174,27 +195,28 @@ func run(addr, id string) error {
 					playerText.Dot.Y += playerText.BoundsOf(line).H() * float64(len(txt)-i)
 					playerText.WriteString(line + "\n")
 					playerText.DrawColorMask(win,
-						pixel.IM.Scaled(pixel.ZV, 2).Chained(playerPos.Moved(pixel.V(0, playerText.Bounds().H()+20))),
+						pixel.IM.Scaled(pixel.ZV, 2).Moved(pixel.V(player.Position.X, player.Position.Y+20)),
 						player.Color)
 				}
 			}
 
-			if speechMode && id == player.ID {
+			if g.speechMode && id == player.ID {
 				playerText.Clear()
 				playerText := text.New(pixel.ZV, atlas)
 				playerText.Dot = playerText.Orig
-				playerText.Dot.X -= playerText.BoundsOf(currentSpeechBuffer+"_").W() / 2
-				playerText.WriteString(currentSpeechBuffer + "_")
+				playerText.Dot.X -= playerText.BoundsOf(g.currentSpeechBuffer+"_").W() / 2
+				playerText.WriteString(g.currentSpeechBuffer + "_")
 				playerText.DrawColorMask(win,
-					pixel.IM.Scaled(pixel.ZV, 2).Chained(playerPos.Moved(pixel.V(0, playerText.Bounds().H()+20))),
+					pixel.IM.Scaled(pixel.ZV, 2).Moved(pixel.V(player.Position.X, player.Position.Y+40)),
 					colornames.White)
 			}
 		}
-		lock.RUnlock()
+		g.lock.RUnlock()
 
-		cam := pixel.IM.Moved(win.Bounds().Center().Sub(pixel.V(pos.X, pos.Y)))
+		cam := pixel.IM.Moved(g.wincenter.Sub(pixel.V(pos.X, pos.Y)))
 
 		playerText.Clear()
+		// show mouse coordinates
 		mousePos := cam.Unproject(win.MousePosition())
 		playerText.WriteString(fmt.Sprintf("%v", mousePos))
 		playerText.DrawColorMask(win, pixel.IM.Moved(mousePos), colornames.Firebrick)
@@ -205,6 +227,9 @@ func run(addr, id string) error {
 		fps++
 		select {
 		default:
+		case <-ping:
+			shared.SendMessage(&shared.Message{}, conn)
+
 		case <-second:
 			win.SetTitle(fmt.Sprintf("%v fps", fps))
 			fps = 0
@@ -229,59 +254,74 @@ func loadPicture(path string) (pixel.Picture, error) {
 
 func requestMove(direction shared.Direction, conn net.Conn) error {
 	msg := &shared.Message{
-		MoveRequest: &shared.MoveRequest{
+		Request: &shared.Request{MoveRequest: &shared.MoveRequest{
 			Direction: direction,
 			Created:   time.Now(),
 		},
-	}
+		}}
 	return shared.SendMessage(msg, conn)
 }
 
 func requestSpeak(txt string, conn net.Conn) error {
 	msg := &shared.Message{
-		SpeakRequest: &shared.SpeakRequest{
+		Request: &shared.Request{SpeakRequest: &shared.SpeakRequest{
 			Text: txt,
-		},
+		}},
 	}
 	return shared.SendMessage(msg, conn)
 }
 
-func handleConnection(conn net.Conn) {
+func (g *GameWorld) handleConnection(conn net.Conn) {
 	loop := func() error {
 		msg, err := shared.GetMessage(conn)
 		if err != nil {
 			return err
 		}
-		switch {
-		case msg.PlayerMoved != nil:
-			handlePlayerMoved(msg.PlayerMoved)
-		case msg.PlayerSpoke != nil:
-			handlePlayerSpoke(msg.PlayerSpoke)
-		case msg.WorldState != nil:
-			handleWorldState(msg.WorldState)
-		case msg.PlayerDisconnected != nil:
-			handlePlayerDisconnected(msg.PlayerDisconnected)
+		log.Println("RECV", msg)
+		if msg.Update != nil {
+			g.ApplyUpdate(msg.Update)
 		}
 		return nil
 	}
 	for {
 		if err := loop(); err != nil {
-			errc <- err
+			g.errc <- err
 			continue
 		}
+
 	}
 }
 
-func handlePlayerMoved(moved *shared.PlayerMoved) {
-	setPlayerPosition(moved.ID, moved.NewPosition)
-	reapplySimulations(moved.RequestTime)
+func (g *GameWorld) ApplyUpdate(update *shared.Update) {
+	if update == nil {
+		log.Println("nil update")
+		return
+	}
+	if update.PlayerMoved != nil {
+		g.handlePlayerMoved(update.PlayerMoved)
+	}
+	if update.PlayerSpoke != nil {
+		g.handlePlayerSpoke(update.PlayerSpoke)
+	}
+	if update.WorldState != nil {
+		g.handleWorldState(update.WorldState)
+	}
+	if update.PlayerDisconnected != nil {
+		g.handlePlayerDisconnected(update.PlayerDisconnected)
+	}
+
 }
 
-func handlePlayerSpoke(speech *shared.PlayerSpoke) {
+func (g *GameWorld) handlePlayerMoved(moved *shared.PlayerMoved) {
+	g.setPlayerPosition(moved.ID, moved.NewPosition)
+	g.reapplySimulations(moved.RequestTime)
+}
+
+func (g *GameWorld) handlePlayerSpoke(speech *shared.PlayerSpoke) {
 	id := speech.ID
-	speechLock.Lock()
-	defer speechLock.Unlock()
-	txt, ok := playerSpeech[id]
+	g.speechLock.Lock()
+	defer g.speechLock.Unlock()
+	txt, ok := g.playerSpeech[id]
 	if !ok {
 		txt = []string{}
 	}
@@ -289,58 +329,58 @@ func handlePlayerSpoke(speech *shared.PlayerSpoke) {
 		txt = txt[1:]
 	}
 	txt = append(txt, speech.Text)
-	playerSpeech[id] = txt
+	g.playerSpeech[id] = txt
 	go func() {
 		time.Sleep(time.Second * 5)
-		speechLock.Lock()
-		defer speechLock.Unlock()
-		txt, ok := playerSpeech[id]
+		g.speechLock.Lock()
+		defer g.speechLock.Unlock()
+		txt, ok := g.playerSpeech[id]
 		if !ok {
 			txt = []string{}
 		}
 		if len(txt) > 0 {
 			txt = txt[1:]
 		}
-		playerSpeech[id] = txt
+		g.playerSpeech[id] = txt
 	}()
 }
 
-func handleWorldState(worldState *shared.WorldState) {
-	lock.Lock()
-	defer lock.Unlock()
+func (g *GameWorld) handleWorldState(worldState *shared.WorldState) {
+	g.lock.Lock()
+	defer g.lock.Unlock()
 	for _, player := range worldState.Players {
-		players[player.ID] = &shared.ClientPlayer{
+		g.players[player.ID] = &shared.ClientPlayer{
 			Player: player,
 			Color:  stringToColor(player.ID),
 		}
 	}
 }
 
-func handlePlayerDisconnected(disconnected *shared.PlayerDisconnected) {
-	lock.Lock()
-	defer lock.Unlock()
-	delete(players, disconnected.ID)
+func (g *GameWorld) handlePlayerDisconnected(disconnected *shared.PlayerDisconnected) {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+	delete(g.players, disconnected.ID)
 }
 
-func processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
-	if speechMode {
-		return processPlayerSpeechInput(conn, win)
+func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
+	if g.speechMode {
+		return g.processPlayerSpeechInput(conn, win)
 	}
 	if win.JustPressed(pixelgl.KeyEnter) {
-		speechMode = true
+		g.speechMode = true
 		return nil
 	}
 
 	// mouse movement
 	mousedir := shared.DIR_NONE
 	if win.Pressed(pixelgl.MouseButtonLeft) {
-		mouse := center.Unproject(win.MousePosition())
+		mouse := g.centerMatrix.Unproject(win.MousePosition())
 		mousedir = shared.UnitToDirection(mouse.Unit())
 	}
 
 	if mousedir != shared.DIR_NONE {
-		queueSimulation(func() {
-			setPlayerPosition(playerID, players[playerID].Position.Add(mousedir.ToVec()))
+		g.queueSimulation(func() {
+			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(mousedir.ToVec()))
 		})
 		if err := requestMove(mousedir, conn); err != nil {
 			return err
@@ -349,32 +389,32 @@ func processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
 
 	// key movement
 	if win.Pressed(pixelgl.KeyA) {
-		queueSimulation(func() {
-			setPlayerPosition(playerID, players[playerID].Position.Add(LEFT.ToVec()))
+		g.queueSimulation(func() {
+			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(LEFT.ToVec()))
 		})
 		if err := requestMove(LEFT, conn); err != nil {
 			return err
 		}
 	}
 	if win.Pressed(pixelgl.KeyD) {
-		queueSimulation(func() {
-			setPlayerPosition(playerID, players[playerID].Position.Add(RIGHT.ToVec()))
+		g.queueSimulation(func() {
+			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(RIGHT.ToVec()))
 		})
 		if err := requestMove(RIGHT, conn); err != nil {
 			return err
 		}
 	}
 	if win.Pressed(pixelgl.KeyW) {
-		queueSimulation(func() {
-			setPlayerPosition(playerID, players[playerID].Position.Add(UP.ToVec()))
+		g.queueSimulation(func() {
+			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(UP.ToVec()))
 		})
 		if err := requestMove(UP, conn); err != nil {
 			return err
 		}
 	}
 	if win.Pressed(pixelgl.KeyS) {
-		queueSimulation(func() {
-			setPlayerPosition(playerID, players[playerID].Position.Add(DOWN.ToVec()))
+		g.queueSimulation(func() {
+			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(DOWN.ToVec()))
 		})
 		if err := requestMove(DOWN, conn); err != nil {
 			return err
@@ -383,26 +423,26 @@ func processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
 	return nil
 }
 
-func processPlayerSpeechInput(conn net.Conn, win *pixelgl.Window) error {
-	currentSpeechBuffer += win.Typed()
+func (g *GameWorld) processPlayerSpeechInput(conn net.Conn, win *pixelgl.Window) error {
+	g.currentSpeechBuffer += win.Typed()
 	if win.JustPressed(pixelgl.KeyBackspace) {
-		if len(currentSpeechBuffer) < 1 {
-			currentSpeechBuffer = ""
+		if len(g.currentSpeechBuffer) < 1 {
+			g.currentSpeechBuffer = ""
 		} else {
-			currentSpeechBuffer = currentSpeechBuffer[:len(currentSpeechBuffer)-1]
+			g.currentSpeechBuffer = g.currentSpeechBuffer[:len(g.currentSpeechBuffer)-1]
 		}
 	}
 	if win.JustPressed(pixelgl.KeyEscape) {
-		currentSpeechBuffer = ""
-		speechMode = false
+		g.currentSpeechBuffer = ""
+		g.speechMode = false
 	}
 	if win.JustPressed(pixelgl.KeyEnter) {
 		var err error
-		if len(currentSpeechBuffer) > 0 {
-			err = requestSpeak(currentSpeechBuffer, conn)
+		if len(g.currentSpeechBuffer) > 0 {
+			err = requestSpeak(g.currentSpeechBuffer, conn)
 		}
-		currentSpeechBuffer = ""
-		speechMode = false
+		g.currentSpeechBuffer = ""
+		g.speechMode = false
 		return err
 	}
 	return nil
@@ -419,10 +459,10 @@ func stringToColor(str string) color.Color {
 	return c
 }
 
-func setPlayerPosition(id string, pos pixel.Vec) {
-	lock.RLock()
-	defer lock.RUnlock()
-	player, ok := players[id]
+func (g *GameWorld) setPlayerPosition(id string, pos pixel.Vec) {
+	g.lock.RLock()
+	defer g.lock.RUnlock()
+	player, ok := g.players[id]
 	if !ok {
 		player = &shared.ClientPlayer{
 			Player: &shared.Player{
@@ -430,43 +470,43 @@ func setPlayerPosition(id string, pos pixel.Vec) {
 			},
 			Color: stringToColor(id),
 		}
-		players[id] = player
+		g.players[id] = player
 	}
 	player.Position = pos
 }
 
-func queueSimulation(f func()) {
-	simLock.Lock()
-	simulations = append(simulations, &simulation{
+func (g *GameWorld) queueSimulation(f func()) {
+	g.simLock.Lock()
+	g.simulations = append(g.simulations, &simulation{
 		f:       f,
 		created: time.Now(),
 	})
-	simLock.Unlock()
+	g.simLock.Unlock()
 }
 
-func applySimulations() {
-	simLock.Lock()
-	for _, sim := range simulations {
+func (g *GameWorld) applySimulations() {
+	g.simLock.Lock()
+	for _, sim := range g.simulations {
 		sim.f()
-		runSimulations = append(runSimulations, sim)
+		g.runSimulations = append(g.runSimulations, sim)
 	}
-	simulations = []*simulation{}
-	simLock.Unlock()
+	g.simulations = []*simulation{}
+	g.simLock.Unlock()
 }
 
-func reapplySimulations(from time.Time) {
+func (g *GameWorld) reapplySimulations(from time.Time) {
 	i := 0
-	if len(runSimulations) == 0 {
+	if len(g.runSimulations) == 0 {
 		return
 	}
-	simLock.Lock()
-	for _, sim := range runSimulations {
+	g.simLock.Lock()
+	for _, sim := range g.runSimulations {
 		if sim.created.After(from) {
 			break
 		}
 		i++
 	}
-	simulations = append(runSimulations[i:], simulations...)
-	runSimulations = []*simulation{}
-	simLock.Unlock()
+	g.simulations = append(g.runSimulations[i:], g.simulations...)
+	g.runSimulations = []*simulation{}
+	g.simLock.Unlock()
 }
