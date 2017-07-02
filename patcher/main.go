@@ -1,28 +1,28 @@
 package main
 
 import (
+	"crypto/md5"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 
-	"crypto/md5"
-	"fmt"
 	"github.com/layer-x/layerx-commons/lxhttpclient"
 	"github.com/pborman/uuid"
-	"net/http"
-	"net/url"
 )
 
 var addr = flag.String("addr", "localhost:8080", "http service address")
 var playerID = flag.String("id", "", "player id to use")
 var confFile = flag.String("conf", "login.txt", "login config file")
-var protocol = flag.String("protocol", "kcp", fmt.Sprintf("network protocol to use."))
+var protocol = flag.String("protocol", "udp", fmt.Sprintf("network protocol to use."))
 
 func main() {
 	flag.Parse()

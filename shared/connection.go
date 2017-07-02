@@ -14,33 +14,28 @@ import (
 )
 
 const (
-	ProtocolKCP = "kcp"
 	ProtocolUDP = "udp"
 	ProtocolTCP = "tcp"
 )
 
 func Dial(protocol, raddr string) (net.Conn, error) {
 	switch protocol {
-	case ProtocolKCP:
-		return kcp.Dial(raddr)
 	case ProtocolUDP:
-		return net.Dial("udp", raddr)
+		return kcp.Dial(raddr)
 	case ProtocolTCP:
 		return net.Dial("tcp", raddr)
 	}
-	return nil, fmt.Errorf("invalid protcol %s. select from available: %s | %s | %s", ProtocolKCP, ProtocolUDP, ProtocolTCP)
+	return nil, fmt.Errorf("invalid protcol %s. select from available: %s | %s", ProtocolUDP, ProtocolTCP)
 }
 
 func Listen(protocol, laddr string) (net.Listener, error) {
 	switch protocol {
-	case ProtocolKCP:
-		return kcp.Listen(laddr)
 	case ProtocolUDP:
-		return net.Listen("udp", laddr)
+		return kcp.Listen(laddr)
 	case ProtocolTCP:
 		return net.Listen("tcp", laddr)
 	}
-	return nil, fmt.Errorf("invalid protcol %s. select from available: %s | %s | %s ", ProtocolKCP, ProtocolUDP, ProtocolTCP)
+	return nil, fmt.Errorf("invalid protcol %s. select from available: %s | %s ", ProtocolUDP, ProtocolTCP)
 }
 
 func GetMessage(r io.Reader) (*Message, error) {

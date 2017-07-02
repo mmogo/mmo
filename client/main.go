@@ -59,7 +59,7 @@ type GameWorld struct {
 func main() {
 	addr := flag.String("addr", "localhost:8080", "address of server")
 	id := flag.String("id", "", "playerid to use")
-	protocol := flag.String("protocol", "kcp", fmt.Sprintf("network protocol to use. available %s | %s | %s", shared.ProtocolUDP, shared.ProtocolTCP, shared.ProtocolKCP))
+	protocol := flag.String("protocol", "udp", fmt.Sprintf("network protocol to use. available %s | %s", shared.ProtocolTCP, shared.ProtocolUDP))
 	flag.Parse()
 	if *id == "" {
 		log.Fatal("id must be provided")

@@ -32,7 +32,7 @@ const (
 
 func main() {
 	port := flag.Int("port", 8080, "port to serve on")
-	protocol := flag.String("protocol", "kcp", fmt.Sprintf("network protocol to use. available %s | %s | %s", shared.ProtocolUDP, shared.ProtocolTCP, shared.ProtocolKCP))
+	protocol := flag.String("protocol", "udp", fmt.Sprintf("network protocol to use. available %s | %s", shared.ProtocolTCP, shared.ProtocolUDP))
 	flag.Parse()
 	errc := make(chan error)
 	go func() { errc <- serve(*protocol, *port, errc) }()
