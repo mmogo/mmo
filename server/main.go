@@ -38,10 +38,10 @@ func main() {
 	for {
 		select {
 		case err := <-errc:
-
-			if strings.HasPrefix(err.Error(), "fatal") {
+			switch err.(type) {
+			case shared.FatalError:
 				log.Fatal(err)
-			} else {
+			default:
 				log.Println("error:", err)
 			}
 
@@ -84,15 +84,13 @@ func serve(port int, errc chan error) error {
 					return
 				}
 				if req.URL.Path == "/"+client {
-					clientfile, err := os.Open(client)
-					if err == nil {
-						io.Copy(w, clientfile)
-					}
+					log.Printf("serving client: %s", client)
+					http.ServeFile(w, req, client)
 					return
 				}
 
 			}
-
+			log.Printf("bad http request: %s", req.URL.Path)
 			http.NotFound(w, req)
 		}),
 	)
