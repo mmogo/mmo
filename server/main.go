@@ -222,7 +222,6 @@ func gameLoop(errc chan error) {
 		dt = 0.0
 		if err := tick(); err != nil {
 			log.Printf("ERROR IN TICK: %v", err)
-			//TODO: handle tick errors
 			errc <- err
 		}
 	}
