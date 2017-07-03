@@ -24,13 +24,13 @@ type mmoServer struct {
 	playersLock sync.RWMutex
 	players     map[string]*shared.ServerPlayer
 	updatesLock sync.Mutex
-	updates     []*update
+	updates     []func() error
 }
 
 func newMMOServer() *mmoServer {
 	return &mmoServer{
 		players: make(map[string]*shared.ServerPlayer),
-		updates: []*update{},
+		updates: []func() error{},
 	}
 }
 
@@ -102,11 +102,9 @@ func (s *mmoServer) start(protocol string, port int, errc chan error) error {
 			log.Printf("HTTP server crashed: %v", httpServer.Serve(httpL))
 		}()
 	} else {
-		if len(clientChecksums) > 0 {
-			go func() {
-				log.Printf("fileserver crashed: %v", http.ListenAndServe(laddr, mux))
-			}()
-		}
+		go func() {
+			log.Printf("fileserver crashed: %v", http.ListenAndServe(laddr, mux))
+		}()
 	}
 
 	// start game loop
@@ -179,19 +177,13 @@ func (s *mmoServer) handleConnection(conn net.Conn) error {
 	}
 
 	// move to (0,0)
-	s.queueUpdate(&update{
-		notifyPlayerMoved: &notifyPlayerMoved{
-			id:          id,
-			newPosition: pos,
-			requestTime: time.Now(),
-		},
+	s.queueUpdate(func() error {
+		return s.broadcastPlayerMoved(id, pos, time.Now())
 	})
 
 	// send world state to player
-	s.queueUpdate(&update{
-		notifyWorldState: &notifyWorldState{
-			targetID: id,
-		},
+	s.queueUpdate(func() error {
+		return s.sendWorldState(id)
 	})
 
 	// handle player in goroutine
@@ -214,10 +206,8 @@ func (s *mmoServer) handlePlayer(id string) {
 			s.playersLock.Lock()
 			delete(s.players, id)
 			s.playersLock.Unlock()
-			s.queueUpdate(&update{
-				notifyPlayerDisconnected: &notifyPlayerDisconnected{
-					id: id,
-				},
+			s.queueUpdate(func() error {
+				return s.broadcastPlayerDisconnected(id)
 			})
 			continue
 		}
@@ -269,25 +259,8 @@ func (s *mmoServer) tick() error {
 	defer s.updatesLock.Unlock()
 	processed := 0
 	for _, update := range s.updates {
-		switch {
-		case update.notifyPlayerMoved != nil:
-			id, newPos, requestTime := update.notifyPlayerMoved.id, update.notifyPlayerMoved.newPosition, update.notifyPlayerMoved.requestTime
-			if err := s.broadcastPlayerMoved(id, newPos, requestTime); err != nil {
-				return err
-			}
-		case update.notifyPlayerSpoke != nil:
-			id, txt := update.notifyPlayerSpoke.id, update.notifyPlayerSpoke.text
-			if err := s.broadcastPlayerSpoke(id, txt); err != nil {
-				return err
-			}
-		case update.notifyWorldState != nil:
-			if err := s.sendWorldState(update.notifyWorldState.targetID); err != nil {
-				return err
-			}
-		case update.notifyPlayerDisconnected != nil:
-			if err := s.broadcastPlayerDisconnected(update.notifyPlayerDisconnected.id); err != nil {
-				return err
-			}
+		if err := update(); err != nil {
+			return errors.New("processing update", err)
 		}
 		processed++
 	}
@@ -370,12 +343,8 @@ func (s *mmoServer) handleMoveRequest(id string, req *shared.MoveRequest) error 
 	}
 
 	player.Position = player.Position.Add(req.Direction.ToVec())
-	s.queueUpdate(&update{
-		notifyPlayerMoved: &notifyPlayerMoved{
-			id:          id,
-			newPosition: player.Position,
-			requestTime: req.Created,
-		},
+	s.queueUpdate(func() error {
+		return s.broadcastPlayerMoved(id, player.Position, req.Created)
 	})
 	return nil
 }
@@ -387,17 +356,14 @@ func (s *mmoServer) handleSpeakRequest(id string, req *shared.SpeakRequest) erro
 	if player == nil {
 		return errors.New("requesting player "+id+" is nil??", nil)
 	}
-	s.queueUpdate(&update{
-		notifyPlayerSpoke: &notifyPlayerSpoke{
-			id:   id,
-			text: req.Text,
-		},
+	s.queueUpdate(func() error {
+		return s.broadcastPlayerSpoke(id, req.Text)
 	})
 	return nil
 }
 
-func (s *mmoServer) queueUpdate(u *update) {
+func (s *mmoServer) queueUpdate(update func() error) {
 	s.updatesLock.Lock()
 	defer s.updatesLock.Unlock()
-	s.updates = append(s.updates, u)
+	s.updates = append(s.updates, update)
 }
