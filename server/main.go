@@ -15,7 +15,7 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/ilackarms/pkg/errors"
 	"github.com/mmogo/mmo/shared"
-	"github.com/xtaci/kcp-go"
+	"github.com/soheilhy/cmux"
 	"github.com/xtaci/smux"
 )
 
@@ -31,10 +31,11 @@ const (
 )
 
 func main() {
-	port := flag.Int("p", 8080, "port to serve on")
+	port := flag.Int("port", 8080, "port to serve on")
+	protocol := flag.String("protocol", "udp", fmt.Sprintf("network protocol to use. available %s | %s", shared.ProtocolTCP, shared.ProtocolUDP))
 	flag.Parse()
 	errc := make(chan error)
-	go func() { errc <- serve(*port, errc) }()
+	go func() { errc <- serve(*protocol, *port, errc) }()
 	go func() { gameLoop(errc) }()
 	for {
 		select {
@@ -50,7 +51,7 @@ func main() {
 	}
 }
 
-func serve(port int, errc chan error) error {
+func serve(protocol string, port int, errc chan error) error {
 	laddr := fmt.Sprintf(":%v", port)
 	//get client checksums
 	clientChecksums := map[string]string{
@@ -73,10 +74,14 @@ func serve(port int, errc chan error) error {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/",
-		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if req.Method != "GET" {
-				w.WriteHeader(http.StatusNotFound)
+	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != "GET" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		for client, checksum := range clientChecksums {
+			if strings.Contains(req.URL.Path, client) && req.URL.Query().Get("checksum") == checksum {
+				w.WriteHeader(http.StatusNoContent)
 				return
 			}
 			for client, checksum := range clientChecksums {
@@ -93,17 +98,34 @@ func serve(port int, errc chan error) error {
 			}
 			log.Printf("bad http request: %s", req.URL.Path)
 			http.NotFound(w, req)
-		}),
-	)
-	if len(clientChecksums) > 0 {
-		go func() {
-			log.Printf("fileserver crashed: %v", http.ListenAndServe(laddr, mux))
-		}()
-	}
-	l, err := kcp.Listen(laddr)
+		}
+	})
+
+	l, err := shared.Listen(protocol, laddr)
 	if err != nil {
 		return fmt.Errorf("fatal: %v", err)
 	}
+
+	if protocol == shared.ProtocolTCP {
+		// Create a cmux.
+		m := cmux.New(l)
+		httpL := m.Match(cmux.HTTP1Fast(), cmux.HTTP1())
+		l = m.Match(cmux.Any())
+		httpServer := &http.Server{
+			Handler: mux,
+		}
+		go func() {
+			go m.Serve()
+			log.Printf("HTTP server crashed: %v", httpServer.Serve(httpL))
+		}()
+	} else {
+		if len(clientChecksums) > 0 {
+			go func() {
+				log.Printf("fileserver crashed: %v", http.ListenAndServe(laddr, mux))
+			}()
+		}
+	}
+
 	log.Printf("listening for connections on %v", port)
 	for {
 		conn, err := l.Accept()

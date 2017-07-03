@@ -19,7 +19,6 @@ import (
 	"github.com/faiface/pixel/text"
 	"github.com/mmogo/mmo/client/assets"
 	"github.com/mmogo/mmo/shared"
-	"github.com/xtaci/kcp-go"
 	"github.com/xtaci/smux"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
@@ -60,20 +59,17 @@ type GameWorld struct {
 func main() {
 	addr := flag.String("addr", "localhost:8080", "address of server")
 	id := flag.String("id", "", "playerid to use")
+	protocol := flag.String("protocol", "udp", fmt.Sprintf("network protocol to use. available %s | %s", shared.ProtocolTCP, shared.ProtocolUDP))
 	flag.Parse()
 	if *id == "" {
 		log.Fatal("id must be provided")
 	}
-	Main(*addr, *id)
+	pixelgl.Run(Run(*protocol, *addr, *id))
 }
 
-func Main(addr, id string) {
-	pixelgl.Run(Run(addr, id))
-}
-
-func Run(addr, id string) func() {
+func Run(protocol, addr, id string) func() {
 	return func() {
-		if err := run(addr, id); err != nil {
+		if err := run(protocol, addr, id); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -87,11 +83,9 @@ func NewGame() *GameWorld {
 	return g
 }
 
-func run(addr, id string) error {
-
+func run(protocol, addr, id string) error {
 	log.Printf("connecting to %s", addr)
-
-	conn, err := kcp.Dial(addr)
+	conn, err := shared.Dial(protocol, addr)
 	if err != nil {
 		return err
 	}

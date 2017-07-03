@@ -13,25 +13,36 @@ import (
 	"github.com/xtaci/kcp-go"
 )
 
-//func NewWebsocketListener(laddr string) (net.Listener, error) {
-//	return websocket.BinaryFrame
-//}
+const (
+	ProtocolUDP = "udp"
+	ProtocolTCP = "tcp"
+)
 
-func ListenUDP(laddr string) (net.Listener, error) {
-	return net.Listen("udp", laddr)
+func Dial(protocol, raddr string) (net.Conn, error) {
+	switch protocol {
+	case ProtocolUDP:
+		return kcp.Dial(raddr)
+	case ProtocolTCP:
+		return net.Dial("tcp", raddr)
+	}
+	return nil, fmt.Errorf("invalid protcol %s. select from available: %s | %s", ProtocolUDP, ProtocolTCP)
 }
 
-func ListenTCP(laddr string) (net.Listener, error) {
-	return net.Listen("tcp", laddr)
+func Listen(protocol, laddr string) (net.Listener, error) {
+	switch protocol {
+	case ProtocolUDP:
+		return kcp.Listen(laddr)
+	case ProtocolTCP:
+		return net.Listen("tcp", laddr)
+	}
+	return nil, fmt.Errorf("invalid protcol %s. select from available: %s | %s ", ProtocolUDP, ProtocolTCP)
 }
 
-func ListenKCP(laddr string) (net.Listener, error) {
-	return kcp.Listen(laddr)
-}
-
-func GetMessage(conn net.Conn) (*Message, error) {
-	conn.SetDeadline(time.Now().Add(time.Second * 3))
-	raw, err := read(conn)
+func GetMessage(r io.Reader) (*Message, error) {
+	if conn, ok := r.(net.Conn); ok {
+		conn.SetDeadline(time.Now().Add(time.Second * 3))
+	}
+	raw, err := read(r)
 	if err != nil {
 		return nil, err
 	}
@@ -43,24 +54,26 @@ func GetMessage(conn net.Conn) (*Message, error) {
 	return &msg, nil
 }
 
-func SendMessage(msg *Message, conn net.Conn) error {
+func SendMessage(msg *Message, w io.Writer) error {
 	msg.Sent = time.Now()
 	data, err := Encode(msg)
 	if err != nil {
 		return err
 	}
-	return SendRaw(data, conn)
+	return SendRaw(data, w)
 }
 
-func SendRaw(data []byte, conn net.Conn) error {
-	conn.SetDeadline(time.Now().Add(time.Second * 3))
+func SendRaw(data []byte, w io.Writer) error {
+	if conn, ok := w.(net.Conn); ok {
+		conn.SetDeadline(time.Now().Add(time.Second * 3))
+	}
 	size := len(data)
 	if size > math.MaxUint16 {
 		return fmt.Errorf("message size too large: %v", size)
 	}
 	sizeInBytes := make([]byte, 2)
 	binary.BigEndian.PutUint16(sizeInBytes, uint16(size))
-	_, err := conn.Write(append(sizeInBytes, data...))
+	_, err := w.Write(append(sizeInBytes, data...))
 	return err
 }
 
