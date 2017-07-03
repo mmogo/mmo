@@ -42,8 +42,6 @@ func atlasDefault() map[shared.Direction]map[shared.Action][]pixel.Rect {
 			allframes = append(allframes, frame)
 		}
 	}
-	log.Println("total:", len(allframes))
-
 	// idle
 	m[UP][shared.A_IDLE] = []pixel.Rect{allframes[26], allframes[26]}
 	m[DOWN][shared.A_IDLE] = []pixel.Rect{allframes[26], allframes[26]}
@@ -122,10 +120,6 @@ func atlasDefault() map[shared.Direction]map[shared.Action][]pixel.Rect {
 	m[RIGHT][shared.A_DEAD] = allframes[265:]
 	m[UPRIGHT][shared.A_DEAD] = allframes[265:]
 	m[DOWNRIGHT][shared.A_DEAD] = allframes[265:]
-
-	for i, f := range allframes {
-		log.Println(i, f)
-	}
 	return m
 }
 func LoadSpriteSheet(path string, atlas Atlas) (*Sprite, error) {
