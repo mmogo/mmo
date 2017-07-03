@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/faiface/pixel"
 	"time"
+
+	"github.com/faiface/pixel"
 )
 
 type (
