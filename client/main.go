@@ -173,7 +173,10 @@ func run(protocol, addr, id string) error {
 
 		elapsed += dt
 		frameChange := 1.0 / animationRate
-		frame := int(elapsed/frameChange) % len(playerSprite.Frames[g.facing][g.action])
+		frame := 0
+		if len(playerSprite.Frames[g.facing][g.action]) > 0 {
+			frame = int(elapsed/frameChange) % len(playerSprite.Frames[g.facing][g.action])
+		}
 		playerSprite.Sprite.Set(playerSprite.Picture, playerSprite.Frames[g.facing][g.action][frame])
 
 		playerText := text.New(pixel.ZV, atlas)
