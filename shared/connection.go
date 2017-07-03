@@ -39,6 +39,9 @@ func Listen(protocol, laddr string) (net.Listener, error) {
 }
 
 func GetMessage(r io.Reader) (*Message, error) {
+	if conn, ok := r.(net.Conn); ok {
+		conn.SetDeadline(time.Now().Add(time.Second * 3))
+	}
 	raw, err := read(r)
 	if err != nil {
 		return nil, err
@@ -51,16 +54,19 @@ func GetMessage(r io.Reader) (*Message, error) {
 	return &msg, nil
 }
 
-func SendMessage(msg *Message, conn net.Conn) error {
+func SendMessage(msg *Message, w io.Writer) error {
 	msg.Sent = time.Now()
 	data, err := Encode(msg)
 	if err != nil {
 		return err
 	}
-	return SendRaw(data, conn)
+	return SendRaw(data, w)
 }
 
 func SendRaw(data []byte, w io.Writer) error {
+	if conn, ok := w.(net.Conn); ok {
+		conn.SetDeadline(time.Now().Add(time.Second * 3))
+	}
 	size := len(data)
 	if size > math.MaxUint16 {
 		return fmt.Errorf("message size too large: %v", size)

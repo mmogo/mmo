@@ -15,8 +15,8 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/ilackarms/pkg/errors"
 	"github.com/mmogo/mmo/shared"
-	"github.com/xtaci/smux"
 	"github.com/soheilhy/cmux"
+	"github.com/xtaci/smux"
 )
 
 func init() {
