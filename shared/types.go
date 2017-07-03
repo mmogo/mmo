@@ -1,12 +1,16 @@
 package shared
 
 import (
+	"fmt"
 	"image/color"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/faiface/pixel"
 )
+
+const fatalErrSig = "**FATAL_ERR**"
 
 type ServerPlayer struct {
 	*Player
@@ -25,4 +29,18 @@ type Player struct {
 	Position pixel.Vec
 }
 
-type FatalError error
+type fatalError struct {
+	err error
+}
+
+func FatalErr(err error) error {
+	return &fatalError{err: err}
+}
+
+func (e *fatalError) Error() string {
+	return fmt.Sprintf("%s: %v", fatalErrSig, e.err)
+}
+
+func IsFatal(err error) bool {
+	return err != nil && strings.Contains(err.Error(), fatalErrSig)
+}

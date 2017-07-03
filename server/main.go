@@ -29,8 +29,7 @@ func main() {
 	for {
 		select {
 		case err := <-errc:
-			switch err.(type) {
-			case shared.FatalError:
+			if shared.IsFatal(err) {
 				log.Fatal(err)
 			}
 			log.Println("error:", err)

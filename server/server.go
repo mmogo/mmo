@@ -138,11 +138,8 @@ func (s *mmoServer) handleConnection(conn net.Conn) error {
 	conn = stream
 
 	// read message
-	msg, err := shared.GetMessage(conn)
+	msg, err := shared.GetMessage(conn, true)
 	if err != nil {
-		if strings.Contains(err.Error(), "timeout") {
-			return nil
-		}
 		return err
 	}
 
@@ -155,9 +152,13 @@ func (s *mmoServer) handleConnection(conn net.Conn) error {
 	id := msg.Request.ConnectRequest.ID
 
 	// check if in use
-	/*	if _, taken := players[id]; taken {
-		return fmt.Errorf("Player ID %q in use", id)
-	} */
+	if _, taken := s.players[id]; taken {
+		err := fmt.Errorf("Player ID %q in use", id)
+		if err := s.sendError(conn, shared.FatalErr(err)); err != nil {
+			return shared.FatalErr(err)
+		}
+		return err
+	}
 
 	// echo back connect message
 	err = shared.SendMessage(msg, conn)
@@ -200,7 +201,7 @@ func (s *mmoServer) handlePlayer(id string) {
 			time.Sleep(time.Millisecond)
 		}
 		conn := player.Conn
-		msg, err := shared.GetMessage(conn)
+		msg, err := shared.GetMessage(conn, true)
 		if err != nil {
 			log.Print(errors.New(fmt.Sprintf("Client disconnected: (failed getting message for player %s)", id), err))
 			s.playersLock.Lock()
@@ -307,6 +308,14 @@ func (s *mmoServer) sendWorldState(id string) error {
 	}
 	return shared.SendMessage(&shared.Message{
 		Update: &shared.Update{WorldState: &shared.WorldState{Players: ps}}}, player.Conn)
+}
+
+func (s *mmoServer) sendError(conn net.Conn, err error) error {
+	if err == nil {
+		return errors.New("cannot send nil error!", nil)
+	}
+	return shared.SendMessage(&shared.Message{
+		Error: &shared.Error{Message: err.Error()}}, conn)
 }
 
 func (s *mmoServer) broadcastPlayerDisconnected(id string) error {

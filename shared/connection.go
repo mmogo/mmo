@@ -37,9 +37,11 @@ func Listen(protocol, laddr string) (net.Listener, error) {
 	return nil, fmt.Errorf("invalid protcol %s. select from available: %s | %s ", ProtocolUDP, ProtocolTCP)
 }
 
-func GetMessage(r io.Reader) (*Message, error) {
-	if conn, ok := r.(net.Conn); ok {
-		conn.SetDeadline(time.Now().Add(time.Second * 3))
+func GetMessage(r io.Reader, withDeadline ...bool) (*Message, error) {
+	if len(withDeadline) > 0 && withDeadline[0] {
+		if conn, ok := r.(net.Conn); ok {
+			conn.SetDeadline(time.Now().Add(time.Second * 3))
+		}
 	}
 	raw, err := read(r)
 	if err != nil {
@@ -52,7 +54,12 @@ func GetMessage(r io.Reader) (*Message, error) {
 	return &msg, nil
 }
 
-func SendMessage(msg *Message, w io.Writer) error {
+func SendMessage(msg *Message, w io.Writer, withDeadline ...bool) error {
+	if len(withDeadline) > 0 && withDeadline[0] {
+		if conn, ok := w.(net.Conn); ok {
+			conn.SetDeadline(time.Now().Add(time.Second * 3))
+		}
+	}
 	msg.Sent = time.Now()
 	data, err := Encode(msg)
 	if err != nil {
@@ -62,9 +69,6 @@ func SendMessage(msg *Message, w io.Writer) error {
 }
 
 func SendRaw(data []byte, w io.Writer) error {
-	if conn, ok := w.(net.Conn); ok {
-		conn.SetDeadline(time.Now().Add(time.Second * 3))
-	}
 	size := len(data)
 	if size > math.MaxUint16 {
 		return fmt.Errorf("message size too large: %v", size)
