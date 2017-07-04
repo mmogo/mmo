@@ -114,6 +114,9 @@ func run(protocol, addr, id string) error {
 	if err != nil {
 		return err
 	}
+	if msg.Error != nil {
+		return fmt.Errorf("server returned an error: %v", msg.Error.Message)
+	}
 	log.Println("server replied:", msg)
 
 	g := NewGame()
@@ -165,6 +168,16 @@ func run(protocol, addr, id string) error {
 	atlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
 	g.wincenter = win.Bounds().Center()
 	g.centerMatrix = pixel.IM.Moved(g.wincenter)
+
+	go func() {
+		for {
+			err := <-g.errc
+			if shared.IsFatal(err) {
+				log.Fatal(err)
+			}
+			log.Printf("Non-fatal Error: %v", err)
+		}
+	}()
 
 	for !win.Closed() {
 		win.Clear(colornames.Darkblue)
@@ -239,7 +252,6 @@ func run(protocol, addr, id string) error {
 			win.SetTitle(fmt.Sprintf("%v fps", fps))
 			fps = 0
 		}
-
 	}
 	return nil
 }
@@ -280,9 +292,12 @@ func (g *GameWorld) handleConnection(conn net.Conn) {
 	loop := func() error {
 		msg, err := shared.GetMessage(conn)
 		if err != nil {
-			return err
+			return shared.FatalErr(err)
 		}
 		log.Println("RECV", msg)
+		if msg.Error != nil {
+			return fmt.Errorf("server returned an error: %v", msg.Error.Message)
+		}
 		if msg.Update != nil {
 			g.ApplyUpdate(msg.Update)
 		}
