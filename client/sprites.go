@@ -10,6 +10,10 @@ import (
 	"github.com/mmogo/mmo/shared"
 )
 
+func init() {
+	AtlasL = atlasL()
+}
+
 // Sprite is an animated sprite
 type Sprite struct {
 	Picture pixel.Picture
@@ -43,12 +47,14 @@ func (s *Sprite) Draw(target pixel.Target, matrix pixel.Matrix, color color.Colo
 	s.Sprite.DrawColorMask(target, matrix, color)
 }
 
-// Atlas is a func that returns a map
-type Atlas func() map[shared.Direction]map[shared.Action][]pixel.Rect
+// Atlas map
+type Atlas map[shared.Direction]map[shared.Action][]pixel.Rect
 
-// AtlasL for spritesheets generated with Gaurav0's character generator
+var AtlasL Atlas
+
+// atlasL for spritesheets generated with Gaurav0's character generator
 // https://github.com/Gaurav0/Universal-LPC-Spritesheet-Character-Generator
-func AtlasL() map[shared.Direction]map[shared.Action][]pixel.Rect {
+func atlasL() Atlas {
 	m := map[shared.Direction]map[shared.Action][]pixel.Rect{}
 	for _, dir := range []shared.Direction{UP, DOWN, LEFT, RIGHT, UPLEFT, UPRIGHT, DOWNLEFT, DOWNRIGHT} {
 		m[dir] = make(map[shared.Action][]pixel.Rect)
@@ -154,12 +160,12 @@ func LoadSpriteSheet(path string, atlas Atlas) (*Sprite, error) {
 	if err != nil {
 		return nil, err
 	}
-	if atlas == nil {
-		atlas = AtlasL
-	}
 	s := new(Sprite)
+	s.Frames = AtlasL
+	if atlas != nil {
+		s.Frames = atlas
+	}
 	s.Sprite = pixel.NewSprite(nil, pixel.Rect{})
-	s.Frames = atlas()
 	s.Picture = pic
 	return s, nil
 }
