@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"image"
-	"log"
 
 	"github.com/faiface/pixel"
 	"github.com/mmogo/mmo/client/assets"
@@ -34,7 +33,6 @@ func atlasDefault() map[shared.Direction]map[shared.Action][]pixel.Rect {
 	frameHeight := bounds.Max.Y / frameshigh
 	frameWidth := bounds.Max.X / frameswide
 	singleframe := pixel.R(0, 0, frameWidth, frameHeight)
-	log.Println(singleframe)
 	allframes := []pixel.Rect{}
 	for y := bounds.Max.Y - frameHeight; y >= 0.00; y = y - frameHeight {
 		for x := 0.00; x < bounds.Max.X; x = x + frameWidth {
