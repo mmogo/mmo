@@ -156,7 +156,9 @@ func run(protocol, addr, id string) error {
 	atlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
 	g.wincenter = win.Bounds().Center()
 	g.centerMatrix = pixel.IM.Moved(g.wincenter)
-	g.facing = DOWN
+	if g.facing == shared.DIR_NONE {
+		g.facing = DOWN
+	}
 	g.action = shared.A_WALK
 	for !win.Closed() {
 		win.Clear(colornames.Darkblue)
@@ -348,7 +350,9 @@ func (g *GameWorld) handlePlayerDisconnected(disconnected *shared.PlayerDisconne
 
 func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
 	// reset sprite facing
-	g.facing = shared.DOWN
+	if g.facing == shared.DIR_NONE {
+		g.facing = shared.DOWN
+	}
 	g.action = shared.A_IDLE
 	// mouse movement
 	mousedir := shared.DIR_NONE

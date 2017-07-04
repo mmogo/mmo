@@ -74,14 +74,14 @@ func atlasL() Atlas {
 		}
 	}
 	// idle
-	m[UP][shared.A_IDLE] = []pixel.Rect{allframes[26], allframes[26]}
+	m[UP][shared.A_IDLE] = []pixel.Rect{allframes[0], allframes[0]}
 	m[DOWN][shared.A_IDLE] = []pixel.Rect{allframes[26], allframes[26]}
-	m[LEFT][shared.A_IDLE] = []pixel.Rect{allframes[26], allframes[26]}
-	m[UPLEFT][shared.A_IDLE] = []pixel.Rect{allframes[26], allframes[26]}
-	m[DOWNLEFT][shared.A_IDLE] = []pixel.Rect{allframes[26], allframes[26]}
-	m[RIGHT][shared.A_IDLE] = []pixel.Rect{allframes[26], allframes[26]}
-	m[UPRIGHT][shared.A_IDLE] = []pixel.Rect{allframes[26], allframes[26]}
-	m[DOWNRIGHT][shared.A_IDLE] = []pixel.Rect{allframes[26], allframes[26]}
+	m[LEFT][shared.A_IDLE] = []pixel.Rect{allframes[13], allframes[13]}
+	m[UPLEFT][shared.A_IDLE] = []pixel.Rect{allframes[13], allframes[13]}
+	m[DOWNLEFT][shared.A_IDLE] = []pixel.Rect{allframes[13], allframes[13]}
+	m[RIGHT][shared.A_IDLE] = []pixel.Rect{allframes[39], allframes[39]}
+	m[UPRIGHT][shared.A_IDLE] = []pixel.Rect{allframes[39], allframes[39]}
+	m[DOWNRIGHT][shared.A_IDLE] = []pixel.Rect{allframes[39], allframes[39]}
 
 	// spell casting
 	m[UP][shared.A_SPELL] = allframes[0:8]
