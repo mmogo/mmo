@@ -160,6 +160,15 @@ func run(protocol, addr, id string) error {
 		g.facing = DOWN
 	}
 	g.action = shared.A_WALK
+	go func() {
+		for {
+			err := <-g.errc
+			if shared.IsFatal(err) {
+				log.Fatal(err)
+			}
+			log.Printf("Non-fatal Error: %v", err)
+		}
+	}()
 	for !win.Closed() {
 		win.Clear(colornames.Darkblue)
 		dt := time.Since(last).Seconds()
