@@ -1,9 +1,7 @@
 package shared
 
 import (
-	"bytes"
 	"encoding/binary"
-	"encoding/gob"
 	"fmt"
 	"io"
 	"math"
@@ -11,6 +9,7 @@ import (
 	"time"
 
 	"github.com/xtaci/kcp-go"
+	"gopkg.in/mgo.v2/bson"
 )
 
 const (
@@ -46,9 +45,8 @@ func GetMessage(r io.Reader) (*Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	dec := gob.NewDecoder(bytes.NewBuffer(raw))
 	var msg Message
-	if err := dec.Decode(&msg); err != nil {
+	if err := bson.Unmarshal(raw, &msg); err != nil {
 		return nil, err
 	}
 	return &msg, nil
@@ -78,10 +76,7 @@ func SendRaw(data []byte, w io.Writer) error {
 }
 
 func Encode(e interface{}) ([]byte, error) {
-	buf := &bytes.Buffer{}
-	enc := gob.NewEncoder(buf)
-	err := enc.Encode(e)
-	return buf.Bytes(), err
+	return bson.Marshal(e)
 }
 
 func read(r io.Reader) ([]byte, error) {
