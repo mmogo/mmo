@@ -113,6 +113,9 @@ func run(protocol, addr, id string) error {
 	if err != nil {
 		return err
 	}
+	if msg.Error != nil {
+		return fmt.Errorf("server returned an error: %v", msg.Error.Message)
+	}
 	log.Println("server replied:", msg)
 
 	g := NewGame()
@@ -146,7 +149,7 @@ func run(protocol, addr, id string) error {
 
 	playerSprite, err := LoadSpriteSheet("sprites/char1.png", nil)
 	if err != nil {
-		return shared.FatalError(err)
+		return shared.FatalErr(err)
 	}
 
 	fps := 0 // calculated frames per second
@@ -242,7 +245,6 @@ func run(protocol, addr, id string) error {
 			win.SetTitle(fmt.Sprintf("%v fps", fps))
 			fps = 0
 		}
-
 	}
 	return nil
 }
@@ -270,9 +272,12 @@ func (g *GameWorld) handleConnection(conn net.Conn) {
 	loop := func() error {
 		msg, err := shared.GetMessage(conn)
 		if err != nil {
-			return err
+			return shared.FatalErr(err)
 		}
 		log.Println("RECV", msg)
+		if msg.Error != nil {
+			return fmt.Errorf("server returned an error: %v", msg.Error.Message)
+		}
 		if msg.Update != nil {
 			g.ApplyUpdate(msg.Update)
 		}
