@@ -149,9 +149,7 @@ func run(protocol, addr, id string) error {
 		return shared.FatalError(err)
 	}
 
-	animationRate := 10.0 // framerate of player animation (per second)
-	elapsed := 0.0        // time elapsed total
-	fps := 0              // calculated frames per second
+	fps := 0 // calculated frames per second
 	second := time.Tick(time.Second)
 	ping := time.Tick(time.Second * 2)
 	last := time.Now()
@@ -171,13 +169,7 @@ func run(protocol, addr, id string) error {
 
 		g.applySimulations()
 
-		elapsed += dt
-		frameChange := 1.0 / animationRate
-		frame := 0
-		if len(playerSprite.Frames[g.facing][g.action]) > 0 {
-			frame = int(elapsed/frameChange) % len(playerSprite.Frames[g.facing][g.action])
-		}
-		playerSprite.Sprite.Set(playerSprite.Picture, playerSprite.Frames[g.facing][g.action][frame])
+		playerSprite.Animate(dt, g.facing, g.action)
 
 		playerText := text.New(pixel.ZV, atlas)
 
@@ -186,7 +178,7 @@ func run(protocol, addr, id string) error {
 		pos := g.players[id].Position
 		for _, player := range g.players {
 			playerPos := pixel.IM.Moved(pixel.V(player.Position.X, player.Position.Y))
-			playerSprite.Sprite.DrawColorMask(win, playerPos, player.Color)
+			playerSprite.Draw(win, playerPos, player.Color)
 			g.speechLock.RLock()
 			txt, ok := g.playerSpeech[player.ID]
 			g.speechLock.RUnlock()

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"image"
+	"image/color"
 
 	"github.com/faiface/pixel"
 	"github.com/mmogo/mmo/client/assets"
@@ -14,14 +15,40 @@ type Sprite struct {
 	Picture pixel.Picture
 	Frames  map[shared.Direction]map[shared.Action][]pixel.Rect
 	Sprite  *pixel.Sprite
-	Frame   int // current frame
+	Frame   int     // current frame
+	Speed   float64 // frames per second
+	elapsed float64
 }
 
+func (s *Sprite) Animate(dt float64, facing shared.Direction, action shared.Action) {
+	s.elapsed += dt
+	if s.Speed == 0 {
+		s.Speed = 0.1
+	}
+	s.Frame = 0 // default frame
+	if facing == shared.DIR_NONE {
+		facing = DOWN
+	}
+	if len(s.Frames[facing][action]) > 0 {
+		s.Frame = int(s.elapsed/s.Speed) % len(s.Frames[facing][action])
+	}
+	s.Sprite.Set(s.Picture, s.Frames[facing][action][s.Frame])
+
+}
+
+func (s *Sprite) Draw(target pixel.Target, matrix pixel.Matrix, color color.Color) {
+	if s.Sprite == nil {
+		s.Sprite = pixel.NewSprite(nil, pixel.Rect{})
+	}
+	s.Sprite.DrawColorMask(target, matrix, color)
+}
+
+// Atlas is a func that returns a map
 type Atlas func() map[shared.Direction]map[shared.Action][]pixel.Rect
 
-var AtlasDefault = atlasDefault
-
-func atlasDefault() map[shared.Direction]map[shared.Action][]pixel.Rect {
+// AtlasL for spritesheets generated with Gaurav0's character generator
+// https://github.com/Gaurav0/Universal-LPC-Spritesheet-Character-Generator
+func AtlasL() map[shared.Direction]map[shared.Action][]pixel.Rect {
 	m := map[shared.Direction]map[shared.Action][]pixel.Rect{}
 	for _, dir := range []shared.Direction{UP, DOWN, LEFT, RIGHT, UPLEFT, UPRIGHT, DOWNLEFT, DOWNRIGHT} {
 		m[dir] = make(map[shared.Action][]pixel.Rect)
@@ -120,13 +147,15 @@ func atlasDefault() map[shared.Direction]map[shared.Action][]pixel.Rect {
 	m[DOWNRIGHT][shared.A_DEAD] = allframes[265:]
 	return m
 }
+
+// LoadSpriteSheet returns an animated sprite derived from image path and atlas function
 func LoadSpriteSheet(path string, atlas Atlas) (*Sprite, error) {
 	pic, err := loadPicture(path)
 	if err != nil {
 		return nil, err
 	}
 	if atlas == nil {
-		atlas = AtlasDefault
+		atlas = AtlasL
 	}
 	s := new(Sprite)
 	s.Sprite = pixel.NewSprite(nil, pixel.Rect{})
@@ -135,12 +164,13 @@ func LoadSpriteSheet(path string, atlas Atlas) (*Sprite, error) {
 	return s, nil
 }
 
+// loadPicture from assets
 func loadPicture(path string) (pixel.Picture, error) {
 	contents, err := assets.Asset(path)
 	if err != nil {
 		return nil, err
 	}
-	file := bytes.NewBuffer(contents)
+	file := bytes.NewReader(contents)
 	img, _, err := image.Decode(file)
 	if err != nil {
 		return nil, err
