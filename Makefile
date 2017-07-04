@@ -9,7 +9,7 @@ OUTPUTDIR := $(SOURCEDIR)/bin
 
 SERVERADDR := localhost
 
-CLIENTSOURCES := $(shell find $(CLIENTDIR) $(SHAREDDIR) -name '*.go')
+CLIENTSOURCES := $(shell find $(CLIENTDIR) $(SHAREDDIR) -name '*.go') $(ASSETDIR)/assets.go
 SERVERSOURCES := $(shell find $(SERVERDIR) $(SHAREDDIR) -name '*.go')
 PATCHERSOURCES := $(shell find $(PATCHERDIR) -name '*.go')
 
@@ -70,14 +70,3 @@ $(OUTPUTDIR)/login.txt:
 
 clean:
 	rm -rf bin
-	rm -f $(ASSETDIR)/assets.go
-
-.PHONY: clean-assets
-
-clean-assets:
-	rm -f $(ASSETDIR)/assets.go
-
-.PHONY: assets
-
-assets: clean-assets $(ASSETDIR)/assets.go
-

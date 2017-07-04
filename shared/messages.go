@@ -8,22 +8,27 @@ import (
 )
 
 type Message struct {
-	Sent    time.Time
-	Request *Request
-	Update  *Update
+	Sent    time.Time `,omitempty`
+	Request *Request  `,omitempty`
+	Update  *Update   `,omitempty`
+	Error   *Error    `,omitempty`
 }
 
 type Update struct {
-	PlayerMoved        *PlayerMoved
-	PlayerSpoke        *PlayerSpoke
-	WorldState         *WorldState
-	PlayerDisconnected *PlayerDisconnected
+	PlayerMoved        *PlayerMoved        `,omitempty`
+	PlayerSpoke        *PlayerSpoke        `,omitempty`
+	WorldState         *WorldState         `,omitempty`
+	PlayerDisconnected *PlayerDisconnected `,omitempty`
 }
 
 type Request struct {
-	ConnectRequest *ConnectRequest
-	MoveRequest    *MoveRequest
-	SpeakRequest   *SpeakRequest
+	ConnectRequest *ConnectRequest `,omitempty`
+	MoveRequest    *MoveRequest    `,omitempty`
+	SpeakRequest   *SpeakRequest   `,omitempty`
+}
+
+type Error struct {
+	Message string
 }
 
 type ConnectRequest struct {
@@ -59,6 +64,9 @@ type PlayerDisconnected struct {
 }
 
 func (m Message) String() string {
+	if m.Error != nil {
+		return fmt.Sprintf("Error: %s", m.Error.Message)
+	}
 	if m.Request != nil {
 		return m.Request.String()
 	}
