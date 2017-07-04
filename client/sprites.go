@@ -14,6 +14,13 @@ func init() {
 	AtlasL = atlasL()
 }
 
+// Atlas map
+type Atlas map[shared.Direction]map[shared.Action][]pixel.Rect
+
+// AtlasL for spritesheets generated with Gaurav0's character generator
+// https://github.com/Gaurav0/Universal-LPC-Spritesheet-Character-Generator
+var AtlasL Atlas
+
 // Sprite is an animated sprite
 type Sprite struct {
 	Picture pixel.Picture
@@ -47,13 +54,6 @@ func (s *Sprite) Draw(target pixel.Target, matrix pixel.Matrix, color color.Colo
 	s.Sprite.DrawColorMask(target, matrix, color)
 }
 
-// Atlas map
-type Atlas map[shared.Direction]map[shared.Action][]pixel.Rect
-
-var AtlasL Atlas
-
-// atlasL for spritesheets generated with Gaurav0's character generator
-// https://github.com/Gaurav0/Universal-LPC-Spritesheet-Character-Generator
 func atlasL() Atlas {
 	m := map[shared.Direction]map[shared.Action][]pixel.Rect{}
 	for _, dir := range []shared.Direction{UP, DOWN, LEFT, RIGHT, UPLEFT, UPRIGHT, DOWNLEFT, DOWNRIGHT} {
