@@ -11,6 +11,7 @@ type Message struct {
 	Sent    time.Time `,omitempty`
 	Request *Request  `,omitempty`
 	Update  *Update   `,omitempty`
+	Error   *Error    `,omitempty`
 }
 
 type Update struct {
@@ -24,6 +25,10 @@ type Request struct {
 	ConnectRequest *ConnectRequest `,omitempty`
 	MoveRequest    *MoveRequest    `,omitempty`
 	SpeakRequest   *SpeakRequest   `,omitempty`
+}
+
+type Error struct {
+	Message string
 }
 
 type ConnectRequest struct {
@@ -59,6 +64,9 @@ type PlayerDisconnected struct {
 }
 
 func (m Message) String() string {
+	if m.Error != nil {
+		return fmt.Sprintf("Error: %s", m.Error.Message)
+	}
 	if m.Request != nil {
 		return m.Request.String()
 	}
