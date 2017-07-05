@@ -32,6 +32,10 @@ const (
 	DOWNRIGHT = shared.DOWNRIGHT
 )
 
+func init() {
+	log.SetFlags(log.Lmicroseconds | log.Lshortfile)
+}
+
 type simulation struct {
 	f       func()
 	created time.Time
@@ -157,6 +161,7 @@ func run(protocol, addr, id string) error {
 	ping := time.Tick(time.Second * 2)
 	last := time.Now()
 	atlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
+	tilebatch := LoadWorld()
 	g.wincenter = win.Bounds().Center()
 	g.centerMatrix = pixel.IM.Moved(g.wincenter)
 	if g.facing == shared.DIR_NONE {
@@ -172,8 +177,9 @@ func run(protocol, addr, id string) error {
 			log.Printf("Non-fatal Error: %v", err)
 		}
 	}()
+	playerText := text.New(pixel.ZV, atlas)
 	for !win.Closed() {
-		win.Clear(colornames.Darkblue)
+		win.Clear(colornames.Yellow)
 		dt := time.Since(last).Seconds()
 		last = time.Now()
 
@@ -185,7 +191,7 @@ func run(protocol, addr, id string) error {
 
 		playerSprite.Animate(dt, g.facing, g.action)
 
-		playerText := text.New(pixel.ZV, atlas)
+		tilebatch.Draw(win)
 
 		lootSprite.Draw(win, pixel.IM.Scaled(pixel.ZV, 2.0))
 		g.lock.RLock()
@@ -376,7 +382,7 @@ func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error
 	}
 	if mousedir != shared.DIR_NONE {
 		g.queueSimulation(func() {
-			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(mousedir.ToVec()))
+			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(mousedir.ToVec().Scaled(2)))
 		})
 		// set sprite facing
 		g.facing = mousedir
