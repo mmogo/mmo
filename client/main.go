@@ -3,10 +3,8 @@ package main
 import (
 	_ "image/png"
 
-	"bytes"
 	"flag"
 	"fmt"
-	"image"
 	"image/color"
 	"log"
 	"math"
@@ -17,7 +15,6 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
-	"github.com/mmogo/mmo/client/assets"
 	"github.com/mmogo/mmo/shared"
 	"github.com/xtaci/smux"
 	"golang.org/x/image/colornames"
@@ -54,6 +51,8 @@ type GameWorld struct {
 	simLock             sync.Mutex
 	wincenter           pixel.Vec
 	centerMatrix        pixel.Matrix
+	facing              shared.Direction
+	action              shared.Action
 }
 
 func main() {
@@ -148,27 +147,22 @@ func run(protocol, addr, id string) error {
 	}
 	lootSprite := pixel.NewSprite(lootImage, lootImage.Bounds())
 
-	playerSheet, err := loadPicture("sprites/player.png")
+	playerSprite, err := LoadSpriteSheet("sprites/char1.png", nil)
 	if err != nil {
-		return err
+		return shared.FatalErr(err)
 	}
-	playerFrames := []pixel.Rect{
-		pixel.R(0, 0, 64, 64),
-		pixel.R(0, 64, 64, 128),
-		pixel.R(64, 64, 128, 128),
-	}
-	playerSprite := pixel.NewSprite(playerSheet, playerFrames[2])
 
-	animationRate := 1.0 // framerate of player animation
-	elapsed := 0.0       // time elapsed total
-	fps := 0             // calculated frames per second
+	fps := 0 // calculated frames per second
 	second := time.Tick(time.Second)
 	ping := time.Tick(time.Second * 2)
 	last := time.Now()
 	atlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
 	g.wincenter = win.Bounds().Center()
 	g.centerMatrix = pixel.IM.Moved(g.wincenter)
-
+	if g.facing == shared.DIR_NONE {
+		g.facing = DOWN
+	}
+	g.action = shared.A_WALK
 	go func() {
 		for {
 			err := <-g.errc
@@ -178,7 +172,6 @@ func run(protocol, addr, id string) error {
 			log.Printf("Non-fatal Error: %v", err)
 		}
 	}()
-
 	for !win.Closed() {
 		win.Clear(colornames.Darkblue)
 		dt := time.Since(last).Seconds()
@@ -190,10 +183,8 @@ func run(protocol, addr, id string) error {
 
 		g.applySimulations()
 
-		elapsed += dt
-		frameChange := 1.0 / animationRate
-		frame := int(elapsed/frameChange) % len(playerFrames)
-		playerSprite = pixel.NewSprite(playerSheet, playerFrames[frame])
+		playerSprite.Animate(dt, g.facing, g.action)
+
 		playerText := text.New(pixel.ZV, atlas)
 
 		lootSprite.Draw(win, pixel.IM.Scaled(pixel.ZV, 2.0))
@@ -201,7 +192,7 @@ func run(protocol, addr, id string) error {
 		pos := g.players[id].Position
 		for _, player := range g.players {
 			playerPos := pixel.IM.Moved(pixel.V(player.Position.X, player.Position.Y))
-			playerSprite.DrawColorMask(win, playerPos, player.Color)
+			playerSprite.Draw(win, playerPos, player.Color)
 			g.speechLock.RLock()
 			txt, ok := g.playerSpeech[player.ID]
 			g.speechLock.RUnlock()
@@ -247,26 +238,15 @@ func run(protocol, addr, id string) error {
 		default:
 		case <-ping:
 			shared.SendMessage(&shared.Message{}, conn)
-
+		}
+		select {
+		default:
 		case <-second:
 			win.SetTitle(fmt.Sprintf("%v fps", fps))
 			fps = 0
 		}
 	}
 	return nil
-}
-
-func loadPicture(path string) (pixel.Picture, error) {
-	contents, err := assets.Asset(path)
-	if err != nil {
-		return nil, err
-	}
-	file := bytes.NewBuffer(contents)
-	img, _, err := image.Decode(file)
-	if err != nil {
-		return nil, err
-	}
-	return pixel.PictureDataFromImage(img), nil
 }
 
 func requestMove(direction shared.Direction, conn net.Conn) error {
@@ -383,6 +363,29 @@ func (g *GameWorld) handlePlayerDisconnected(disconnected *shared.PlayerDisconne
 }
 
 func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
+	// reset sprite facing
+	if g.facing == shared.DIR_NONE {
+		g.facing = shared.DOWN
+	}
+	g.action = shared.A_IDLE
+	// mouse movement
+	mousedir := shared.DIR_NONE
+	if win.Pressed(pixelgl.MouseButtonLeft) {
+		mouse := g.centerMatrix.Unproject(win.MousePosition())
+		mousedir = shared.UnitToDirection(mouse.Unit())
+	}
+	if mousedir != shared.DIR_NONE {
+		g.queueSimulation(func() {
+			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(mousedir.ToVec()))
+		})
+		// set sprite facing
+		g.facing = mousedir
+		g.action = shared.A_WALK
+		if err := requestMove(mousedir, conn); err != nil {
+			return err
+		}
+	}
+
 	if g.speechMode {
 		return g.processPlayerSpeechInput(conn, win)
 	}
@@ -391,24 +394,14 @@ func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error
 		return nil
 	}
 
-	// mouse movement
-	mousedir := shared.DIR_NONE
-	if win.Pressed(pixelgl.MouseButtonLeft) {
-		mouse := g.centerMatrix.Unproject(win.MousePosition())
-		mousedir = shared.UnitToDirection(mouse.Unit())
-	}
-
 	if mousedir != shared.DIR_NONE {
-		g.queueSimulation(func() {
-			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(mousedir.ToVec()))
-		})
-		if err := requestMove(mousedir, conn); err != nil {
-			return err
-		}
+		return nil
 	}
 
 	// key movement
 	if win.Pressed(pixelgl.KeyA) {
+		g.facing = LEFT
+		g.action = shared.A_WALK
 		g.queueSimulation(func() {
 			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(LEFT.ToVec()))
 		})
@@ -417,6 +410,8 @@ func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error
 		}
 	}
 	if win.Pressed(pixelgl.KeyD) {
+		g.facing = RIGHT
+		g.action = shared.A_WALK
 		g.queueSimulation(func() {
 			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(RIGHT.ToVec()))
 		})
@@ -425,6 +420,8 @@ func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error
 		}
 	}
 	if win.Pressed(pixelgl.KeyW) {
+		g.facing = UP
+		g.action = shared.A_WALK
 		g.queueSimulation(func() {
 			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(UP.ToVec()))
 		})
@@ -433,6 +430,9 @@ func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error
 		}
 	}
 	if win.Pressed(pixelgl.KeyS) {
+		g.facing = DOWN
+		g.action = shared.A_WALK
+
 		g.queueSimulation(func() {
 			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(DOWN.ToVec()))
 		})
