@@ -383,7 +383,7 @@ func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error
 	}
 	if mousedir != shared.DIR_NONE {
 		g.queueSimulation(func() {
-			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(mousedir.ToVec()))
+			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(mousedir.ToVec().Scaled(2)))
 		})
 		// set sprite facing
 		g.facing = mousedir
@@ -424,7 +424,7 @@ func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error
 	}
 	if g.action == shared.A_WALK {
 		g.queueSimulation(func() {
-			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(g.facing.ToVec()))
+			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(g.facing.ToVec().Scaled(2)))
 		})
 		if err := requestMove(g.facing, conn); err != nil {
 			return err
