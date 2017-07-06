@@ -256,7 +256,7 @@ func run(protocol, addr, id string) error {
 	return nil
 }
 
-func requestMove(direction shared.Direction, conn net.Conn) error {
+func requestMove(direction pixel.Vec, conn net.Conn) error {
 	msg := &shared.Message{
 		Request: &shared.Request{MoveRequest: &shared.MoveRequest{
 			Direction: direction,
@@ -370,7 +370,7 @@ func (g *GameWorld) handlePlayerDisconnected(disconnected *shared.PlayerDisconne
 }
 
 func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error {
-	// reset sprite facing
+	// set sprite facing if none
 	if g.facing == shared.DIR_NONE {
 		g.facing = shared.DOWN
 	}
@@ -380,15 +380,17 @@ func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error
 	if win.Pressed(pixelgl.MouseButtonLeft) {
 		mouse := g.centerMatrix.Unproject(win.MousePosition())
 		mousedir = shared.UnitToDirection(mouse.Unit())
-	}
-	if mousedir != shared.DIR_NONE {
+		loc := g.players[g.playerID].Position
 		g.queueSimulation(func() {
-			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(mousedir.ToVec().Scaled(2)))
+			g.setPlayerPosition(g.playerID, loc.Add(mouse.Unit().Scaled(2)))
 		})
+
 		// set sprite facing
 		g.facing = mousedir
 		g.action = shared.A_WALK
-		if err := requestMove(mousedir, conn); err != nil {
+
+		// send to server
+		if err := requestMove(mouse.Unit().Scaled(2), conn); err != nil {
 			return err
 		}
 	}
@@ -403,32 +405,6 @@ func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error
 
 	if mousedir != shared.DIR_NONE {
 		return nil
-	}
-
-	// key movement
-	if win.Pressed(pixelgl.KeyA) {
-		g.facing = LEFT
-		g.action = shared.A_WALK
-	}
-	if win.Pressed(pixelgl.KeyD) {
-		g.facing = RIGHT
-		g.action = shared.A_WALK
-	}
-	if win.Pressed(pixelgl.KeyW) {
-		g.facing = UP
-		g.action = shared.A_WALK
-	}
-	if win.Pressed(pixelgl.KeyS) {
-		g.facing = DOWN
-		g.action = shared.A_WALK
-	}
-	if g.action == shared.A_WALK {
-		g.queueSimulation(func() {
-			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(g.facing.ToVec().Scaled(2)))
-		})
-		if err := requestMove(g.facing, conn); err != nil {
-			return err
-		}
 	}
 
 	return nil

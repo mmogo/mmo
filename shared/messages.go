@@ -36,7 +36,7 @@ type ConnectRequest struct {
 }
 
 type MoveRequest struct {
-	Direction Direction
+	Direction pixel.Vec
 	Created   time.Time
 }
 
