@@ -460,14 +460,13 @@ func (g *GameWorld) processPlayerSpeechInput(conn net.Conn, win *pixelgl.Window)
 }
 
 func stringToColor(str string) color.Color {
-	var c color.RGBA
-	for _, char := range str {
-		c.R += uint8(char % math.MaxUint8)
-		c.G += uint8((char - char%math.MaxUint8) % math.MaxUint8)
-		c.G += uint8((char - (char-char%math.MaxUint8)%math.MaxUint8) % math.MaxUint8)
+	colornum := 0
+	for _, s := range str {
+		colornum += int(s)
 	}
-	c.A = 255
-	return c
+	all := len(colornames.Names)
+	name := colornames.Names[colornum%all]
+	return colornames.Map[name]
 }
 
 func (g *GameWorld) setPlayerPosition(id string, pos pixel.Vec) {
