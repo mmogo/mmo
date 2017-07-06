@@ -32,6 +32,10 @@ const (
 	DOWNRIGHT = shared.DOWNRIGHT
 )
 
+func init() {
+	log.SetFlags(log.Lmicroseconds | log.Lshortfile)
+}
+
 type simulation struct {
 	f       func()
 	created time.Time
@@ -157,6 +161,7 @@ func run(protocol, addr, id string) error {
 	ping := time.Tick(time.Second * 2)
 	last := time.Now()
 	atlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
+	tilebatch := LoadWorld()
 	g.wincenter = win.Bounds().Center()
 	g.centerMatrix = pixel.IM.Moved(g.wincenter)
 	if g.facing == shared.DIR_NONE {
@@ -172,8 +177,10 @@ func run(protocol, addr, id string) error {
 			log.Printf("Non-fatal Error: %v", err)
 		}
 	}()
+	camPos := pixel.ZV
+	playerText := text.New(pixel.ZV, atlas)
 	for !win.Closed() {
-		win.Clear(colornames.Darkblue)
+		win.Clear(colornames.Yellow)
 		dt := time.Since(last).Seconds()
 		last = time.Now()
 
@@ -185,13 +192,16 @@ func run(protocol, addr, id string) error {
 
 		playerSprite.Animate(dt, g.facing, g.action)
 
-		playerText := text.New(pixel.ZV, atlas)
+		tilebatch.Draw(win)
 
 		lootSprite.Draw(win, pixel.IM.Scaled(pixel.ZV, 2.0))
 		g.lock.RLock()
 		pos := g.players[id].Position
+		camPos = pixel.Lerp(camPos, g.wincenter.Sub(pos), 1-math.Pow(1.0/128, dt))
+		cam := pixel.IM.Moved(camPos)
+		win.SetMatrix(cam)
 		for _, player := range g.players {
-			playerPos := pixel.IM.Moved(pixel.V(player.Position.X, player.Position.Y))
+			playerPos := pixel.IM.Moved(player.Position)
 			playerSprite.Draw(win, playerPos, player.Color)
 			g.speechLock.RLock()
 			txt, ok := g.playerSpeech[player.ID]
@@ -211,26 +221,23 @@ func run(protocol, addr, id string) error {
 
 			if g.speechMode && id == player.ID {
 				playerText.Clear()
-				playerText := text.New(pixel.ZV, atlas)
 				playerText.Dot = playerText.Orig
 				playerText.Dot.X -= playerText.BoundsOf(g.currentSpeechBuffer+"_").W() / 2
 				playerText.WriteString(g.currentSpeechBuffer + "_")
 				playerText.DrawColorMask(win,
-					pixel.IM.Scaled(pixel.ZV, 2).Moved(pixel.V(player.Position.X, player.Position.Y+40)),
+					pixel.IM.Scaled(pixel.ZV, 2).Moved(pixel.V(player.Position.X, player.Position.Y-64)),
 					colornames.White)
 			}
 		}
 		g.lock.RUnlock()
 
-		cam := pixel.IM.Moved(g.wincenter.Sub(pixel.V(pos.X, pos.Y)))
-
-		playerText.Clear()
 		// show mouse coordinates
 		mousePos := cam.Unproject(win.MousePosition())
+		playerText.Clear()
+		playerText.Dot = playerText.Orig
 		playerText.WriteString(fmt.Sprintf("%v", mousePos))
-		playerText.DrawColorMask(win, pixel.IM.Moved(mousePos), colornames.Firebrick)
+		playerText.DrawColorMask(win, pixel.IM.Moved(mousePos), colornames.White)
 
-		win.SetMatrix(cam)
 		win.Update()
 
 		fps++
@@ -376,7 +383,7 @@ func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error
 	}
 	if mousedir != shared.DIR_NONE {
 		g.queueSimulation(func() {
-			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(mousedir.ToVec()))
+			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(mousedir.ToVec().Scaled(2)))
 		})
 		// set sprite facing
 		g.facing = mousedir
@@ -402,44 +409,28 @@ func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error
 	if win.Pressed(pixelgl.KeyA) {
 		g.facing = LEFT
 		g.action = shared.A_WALK
-		g.queueSimulation(func() {
-			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(LEFT.ToVec()))
-		})
-		if err := requestMove(LEFT, conn); err != nil {
-			return err
-		}
 	}
 	if win.Pressed(pixelgl.KeyD) {
 		g.facing = RIGHT
 		g.action = shared.A_WALK
-		g.queueSimulation(func() {
-			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(RIGHT.ToVec()))
-		})
-		if err := requestMove(RIGHT, conn); err != nil {
-			return err
-		}
 	}
 	if win.Pressed(pixelgl.KeyW) {
 		g.facing = UP
 		g.action = shared.A_WALK
-		g.queueSimulation(func() {
-			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(UP.ToVec()))
-		})
-		if err := requestMove(UP, conn); err != nil {
-			return err
-		}
 	}
 	if win.Pressed(pixelgl.KeyS) {
 		g.facing = DOWN
 		g.action = shared.A_WALK
-
+	}
+	if g.action == shared.A_WALK {
 		g.queueSimulation(func() {
-			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(DOWN.ToVec()))
+			g.setPlayerPosition(g.playerID, g.players[g.playerID].Position.Add(g.facing.ToVec().Scaled(2)))
 		})
-		if err := requestMove(DOWN, conn); err != nil {
+		if err := requestMove(g.facing, conn); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
