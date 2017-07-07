@@ -67,7 +67,7 @@ func (s *mmoServer) start(protocol string, port int, errc chan error) error {
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}
-			if req.URL.Path == "/"+client {
+			if strings.Contains(req.URL.Path, client) {
 				log.Printf("serving client: %s", client)
 				http.ServeFile(w, req, client)
 				return
