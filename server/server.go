@@ -67,21 +67,16 @@ func (s *mmoServer) start(protocol string, port int, errc chan error) error {
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}
-			for client, checksum := range clientChecksums {
-				if strings.Contains(req.URL.Path, client) && req.URL.Query().Get("checksum") == checksum {
-					w.WriteHeader(http.StatusNoContent)
-					return
-				}
-				if req.URL.Path == "/"+client {
-					log.Printf("serving client: %s", client)
-					http.ServeFile(w, req, client)
-					return
-				}
-
+			if strings.Contains(req.URL.Path, client) {
+				log.Printf("serving client: %s", client)
+				http.ServeFile(w, req, client)
+				return
 			}
-			log.Printf("bad http request: %s", req.URL.Path)
-			http.NotFound(w, req)
+
 		}
+		log.Printf("bad http request: %s", req.URL.Path)
+		http.NotFound(w, req)
+
 	})
 
 	l, err := shared.Listen(protocol, laddr)
