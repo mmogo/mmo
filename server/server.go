@@ -351,7 +351,7 @@ func (s *mmoServer) handleMoveRequest(id string, req *shared.MoveRequest) error 
 		return errors.New("requesting player "+id+" is nil??", nil)
 	}
 
-	player.Position = player.Position.Add(req.Direction.ToVec().Scaled(2))
+	player.Position = player.Position.Add(req.Direction.Scaled(2))
 	s.queueUpdate(func() error {
 		return s.broadcastPlayerMoved(id, player.Position, req.Created)
 	})
