@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"math"
 	"time"
 
 	"golang.org/x/image/colornames"
@@ -13,6 +14,7 @@ import (
 func LoadWorld() *pixel.Batch {
 	t1 := time.Now()
 	batch := pixel.NewBatch(&pixel.TrianglesData{}, nil)
+	batch.SetMatrix(pixel.IM.Rotated(pixel.ZV, 45*(math.Pi/180)).ScaledXY(pixel.ZV, pixel.V(1, 0.5)))
 	imd := imdraw.New(nil)
 	var i int
 	for y := -10000.00; y <= 10000; y = y + 100 {
