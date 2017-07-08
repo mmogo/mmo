@@ -180,7 +180,7 @@ func run(protocol, addr, id string) error {
 	camPos := pixel.ZV
 	playerText := text.New(pixel.ZV, atlas)
 	for !win.Closed() {
-		win.Clear(colornames.Yellow)
+		win.Clear(colornames.Black)
 		dt := time.Since(last).Seconds()
 		last = time.Now()
 
