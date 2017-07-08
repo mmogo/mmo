@@ -112,15 +112,7 @@ func run(protocol, addr, id string) error {
 		}}, conn); err != nil {
 		return err
 	}
-
-	msg, err := shared.GetMessage(conn)
-	if err != nil {
-		return err
-	}
-	if msg.Error != nil {
-		return fmt.Errorf("server returned an error: %v", msg.Error.Message)
-	}
-	log.Println("server replied:", msg)
+	log.Printf("connection successful")
 
 	g := NewGame()
 	g.playerID = id
