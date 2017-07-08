@@ -20,6 +20,7 @@ func LoadWorld() *pixel.Batch {
 	for y := -10000.00; y <= 10000; y = y + 100 {
 
 		for x := -10000.00; x <= 10000; x = x + 100 {
+			imd.Clear()
 			i++
 			imd.Color = colornames.Purple
 			imd.Push(pixel.V(x, y))
@@ -30,9 +31,9 @@ func LoadWorld() *pixel.Batch {
 			imd.Push(pixel.V(x+50, y+50))
 			imd.Color = colornames.Green
 			imd.Push(pixel.V(x+100, y+100))
+			imd.Draw(batch)
 		}
 	}
-	imd.Draw(batch)
 	log.Printf("world render: %v iter took %s", i, time.Since(t1))
 	return batch
 }
