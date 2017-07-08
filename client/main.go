@@ -161,7 +161,9 @@ func run(protocol, addr, id string) error {
 	ping := time.Tick(time.Second * 2)
 	last := time.Now()
 	atlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
-	tilebatch := LoadWorld()
+	world := LoadWorld()
+	grid := LoadGrid()
+	debug := false
 	g.wincenter = win.Bounds().Center()
 	g.centerMatrix = pixel.IM.Moved(g.wincenter)
 	if g.facing == shared.DIR_NONE {
@@ -192,7 +194,14 @@ func run(protocol, addr, id string) error {
 
 		playerSprite.Animate(dt, g.facing, g.action)
 
-		tilebatch.Draw(win)
+		world.Draw(win)
+
+		if win.JustPressed(pixelgl.KeyF2) {
+			debug = !debug
+		}
+		if debug {
+			grid.Draw(win)
+		}
 
 		lootSprite.Draw(win, pixel.IM.Scaled(pixel.ZV, 2.0))
 		g.lock.RLock()
