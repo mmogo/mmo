@@ -242,13 +242,12 @@ func run(protocol, addr, id string) error {
 
 		// show mouse coordinates
 		mousePos := cam.Unproject(win.MousePosition())
-		if !debug {
-			mousePos.X = float64(int(mousePos.X))
-			mousePos.Y = float64(int(mousePos.Y))
-		}
 		playerText.Clear()
 		playerText.Dot = playerText.Orig
-		playerText.WriteString(fmt.Sprintf("%s", shared.IsoToMap(mousePos)))
+		mapLoc := shared.IsoToMap(mousePos)
+		mapLoc.X = math.Floor(mapLoc.X)
+		mapLoc.Y = math.Floor(mapLoc.Y)
+		playerText.WriteString(fmt.Sprintf("%s", mapLoc))
 		playerText.DrawColorMask(win, pixel.IM.Moved(mousePos), colornames.White)
 
 		win.Update()
