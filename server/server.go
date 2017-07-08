@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"sync"
 
 	"crypto/md5"
@@ -161,7 +162,7 @@ func (s *mmoServer) handleConnection(conn net.Conn) error {
 		return err
 	}
 
-	pos := pixel.ZV
+	pos := randomSpawnLocation()
 	s.playersLock.Lock()
 	defer s.playersLock.Unlock()
 	s.players[id] = &shared.ServerPlayer{
@@ -387,4 +388,10 @@ func (s *mmoServer) collides(id string, frame pixel.Rect) bool {
 		}
 	}
 	return false
+}
+
+func randomSpawnLocation() pixel.Vec {
+	x := float64(-rand.Intn(50) + rand.Intn(100))
+	y := float64(-rand.Intn(50) + rand.Intn(100))
+	return pixel.V(x, y)
 }
