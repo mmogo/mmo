@@ -32,6 +32,8 @@ const (
 	DOWNRIGHT = shared.DOWNRIGHT
 )
 
+var playersize = pixel.R(-16, -16, 16, 16)
+
 func init() {
 	log.SetFlags(log.Lmicroseconds | log.Lshortfile)
 }
@@ -164,8 +166,6 @@ func run(protocol, addr, id string) error {
 	world := LoadWorld()
 	grid := LoadGrid()
 	debug := false
-	g.wincenter = win.Bounds().Center()
-	g.centerMatrix = pixel.IM.Moved(g.wincenter)
 	if g.facing == shared.DIR_NONE {
 		g.facing = DOWN
 	}
@@ -179,9 +179,14 @@ func run(protocol, addr, id string) error {
 			log.Printf("Non-fatal Error: %v", err)
 		}
 	}()
+	camZoom := 2.0
 	camPos := pixel.ZV
+	camZoomSpeed := 1.2
+	fullscreen := false
 	playerText := text.New(pixel.ZV, atlas)
 	for !win.Closed() {
+		g.wincenter = win.Bounds().Center()
+		g.centerMatrix = pixel.IM.Moved(g.wincenter)
 		win.Clear(colornames.Yellow)
 		dt := time.Since(last).Seconds()
 		last = time.Now()
@@ -196,6 +201,7 @@ func run(protocol, addr, id string) error {
 
 		world.Draw(win)
 
+		// toggle debug
 		if win.JustPressed(pixelgl.KeyF2) {
 			debug = !debug
 		}
@@ -203,15 +209,29 @@ func run(protocol, addr, id string) error {
 			grid.Draw(win)
 		}
 
+		// toggle fullscreen
+		if win.JustPressed(pixelgl.KeyF3) {
+			fullscreen = !fullscreen
+			if fullscreen {
+				win.SetMonitor(pixelgl.PrimaryMonitor())
+			} else {
+				win.SetMonitor(nil)
+			}
+		}
+
 		lootSprite.Draw(win, pixel.IM.Scaled(pixel.ZV, 2.0))
 		g.lock.RLock()
 		pos := g.players[id].Position
-		camPos = pixel.Lerp(camPos, g.wincenter.Sub(pos), 1-math.Pow(1.0/128, dt))
-		cam := pixel.IM.Moved(camPos)
+		camPos = pixel.Lerp(camPos, pos, 1-math.Pow(1.0/128, dt))
+		camZoom *= math.Pow(camZoomSpeed, win.MouseScroll().Y)
+		cam := pixel.IM.Scaled(camPos, camZoom).Moved(g.wincenter.Sub(camPos))
 		win.SetMatrix(cam)
 		for _, player := range g.players {
 			playerPos := pixel.IM.Moved(player.Position)
 			playerSprite.Draw(win, playerPos, player.Color)
+			if debug {
+				getcube(playerPos, win)
+			}
 			g.speechLock.RLock()
 			txt, ok := g.playerSpeech[player.ID]
 			g.speechLock.RUnlock()
@@ -247,7 +267,7 @@ func run(protocol, addr, id string) error {
 		mapLoc := shared.IsoToMap(mousePos)
 		mapLoc.X = math.Floor(mapLoc.X)
 		mapLoc.Y = math.Floor(mapLoc.Y)
-		playerText.WriteString(fmt.Sprintf("%s", mapLoc))
+		playerText.WriteString(fmt.Sprintf("%s %s", mapLoc, mousePos))
 		playerText.DrawColorMask(win, pixel.IM.Moved(mousePos), colornames.White)
 
 		win.Update()
@@ -392,19 +412,23 @@ func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error
 	if win.Pressed(pixelgl.MouseButtonLeft) {
 		mouse := g.centerMatrix.Unproject(win.MousePosition())
 		mousedir = shared.UnitToDirection(mouse.Unit())
-		loc := g.players[g.playerID].Position
-		g.queueSimulation(func() {
-			g.setPlayerPosition(g.playerID, loc.Add(mouse.Unit().Scaled(2)))
-		})
-
 		// set sprite facing
 		g.facing = mousedir
 		g.action = shared.A_WALK
 
-		// send to server
-		if err := requestMove(mouse.Unit().Scaled(2), conn); err != nil {
-			return err
+		loc := g.players[g.playerID].Position
+		if !g.collides(g.playerID, playersize.Moved(loc.Add(mouse.Unit().Scaled(2)))) {
+			g.queueSimulation(func() {
+				g.setPlayerPosition(g.playerID, loc.Add(mouse.Unit().Scaled(2)))
+			})
+			// send to server
+			if err := requestMove(mouse.Unit().Scaled(2), conn); err != nil {
+				return err
+			}
+		} else {
+			log.Println("collision with other player detected")
 		}
+
 	}
 
 	if g.speechMode {
@@ -507,4 +531,16 @@ func (g *GameWorld) reapplySimulations(from time.Time) {
 	g.simulations = append(g.runSimulations[i:], g.simulations...)
 	g.runSimulations = []*simulation{}
 	g.simLock.Unlock()
+}
+
+func (g *GameWorld) collides(id string, frame pixel.Rect) bool {
+	for _, p := range g.players {
+		if p.Player.ID == id {
+			continue
+		}
+		if p.Bounds().Intersect(frame).Norm().Area() != 0 {
+			return true
+		}
+	}
+	return false
 }

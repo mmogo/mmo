@@ -12,6 +12,8 @@ import (
 
 const fatalErrSig = "**FATAL_ERR**"
 
+var playersize = pixel.R(-16, -16, 16, 16)
+
 type ServerPlayer struct {
 	*Player
 	Conn         net.Conn
@@ -43,4 +45,8 @@ func (e *fatalError) Error() string {
 
 func IsFatal(err error) bool {
 	return err != nil && strings.Contains(err.Error(), fatalErrSig)
+}
+
+func (p Player) Bounds() pixel.Rect {
+	return playersize.Moved(p.Position)
 }

@@ -55,3 +55,21 @@ func LoadGrid() *pixel.Batch {
 	log.Printf("grid render: %v iter took %s", i, time.Since(t1))
 	return batch
 }
+
+func getcube(matrix pixel.Matrix, target pixel.Target) {
+	imd := imdraw.New(nil)
+	imd.SetMatrix(matrix.Chained(pixel.IM.Rotated(pixel.ZV, 45*(math.Pi/180)).ScaledXY(pixel.ZV, pixel.V(1, 0.5))))
+	imd.Color = colornames.Yellow
+	imd.Push(pixel.V(0, 0), pixel.V(-64, -64))
+	imd.Rectangle(3)
+	imd.Color = colornames.Blue
+	imd.Push(pixel.V(0, 0), pixel.V(64, 64))
+	imd.Rectangle(3)
+	imd.Push(pixel.V(0, 0), pixel.V(-64, -64))
+	imd.Line(3)
+	imd.Push(pixel.V(64, 0), pixel.V(0, -64))
+	imd.Line(3)
+	imd.Push(pixel.V(-64, 0), pixel.V(0, 64))
+	imd.Line(3)
+	imd.Draw(target)
+}
