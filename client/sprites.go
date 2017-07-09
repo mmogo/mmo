@@ -51,7 +51,7 @@ func (s *Sprite) Draw(target pixel.Target, matrix pixel.Matrix, color color.Colo
 	if s.Sprite == nil {
 		s.Sprite = pixel.NewSprite(nil, pixel.Rect{})
 	}
-	s.Sprite.DrawColorMask(target, matrix, color)
+	s.Sprite.DrawColorMask(target, pixel.IM.ScaledXY(pixel.ZV, pixel.V(1, 1.1)).Chained(matrix), color)
 }
 
 func atlasL() Atlas {

@@ -11,6 +11,8 @@ import (
 	"github.com/faiface/pixel/imdraw"
 )
 
+var isomatrix = pixel.IM.Rotated(pixel.ZV, 45*(math.Pi/180)).ScaledXY(pixel.ZV, pixel.V(1, 0.5))
+
 func LoadWorld() *pixel.Batch {
 	t1 := time.Now()
 	grass, err := loadPicture("sprites/grass.png")
@@ -38,6 +40,18 @@ func LoadGrid() *pixel.Batch {
 	batch := pixel.NewBatch(&pixel.TrianglesData{}, nil)
 	batch.SetMatrix(pixel.IM.Rotated(pixel.ZV, 45*(math.Pi/180)).ScaledXY(pixel.ZV, pixel.V(1, 0.5)))
 	imd := imdraw.New(nil)
+	// draw spawn area
+	imd.Color = colornames.Green
+	imd.Push(pixel.ZV)
+	imd.Circle(124, 0)
+	imd.Color = colornames.Lightgreen
+	imd.Push(pixel.ZV)
+	imd.Circle(64, 0)
+	imd.Color = colornames.White
+	imd.Push(pixel.ZV)
+	imd.Circle(8, 0)
+	imd.Draw(batch)
+
 	imd.Color = pixel.ToRGBA(colornames.Red)
 	var i int
 	tilesize := 64.00
@@ -52,6 +66,7 @@ func LoadGrid() *pixel.Batch {
 			imd.Draw(batch)
 		}
 	}
+
 	log.Printf("grid render: %v iter took %s", i, time.Since(t1))
 	return batch
 }

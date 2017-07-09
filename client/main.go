@@ -147,12 +147,6 @@ func run(protocol, addr, id string) error {
 	}
 
 	// load assets
-	lootImage, err := loadPicture("sprites/loot.png")
-	if err != nil {
-		return err
-	}
-	lootSprite := pixel.NewSprite(lootImage, lootImage.Bounds())
-
 	playerSprite, err := LoadSpriteSheet("sprites/char1.png", nil)
 	if err != nil {
 		return shared.FatalErr(err)
@@ -184,7 +178,7 @@ func run(protocol, addr, id string) error {
 	camZoomSpeed := 1.2
 	fullscreen := false
 	playerText := text.New(pixel.ZV, atlas)
-	for !win.Closed() {
+	for !win.Closed() && !win.JustPressed(pixelgl.KeyEscape) {
 		g.wincenter = win.Bounds().Center()
 		g.centerMatrix = pixel.IM.Moved(g.wincenter)
 		win.Clear(colornames.Yellow)
@@ -219,15 +213,19 @@ func run(protocol, addr, id string) error {
 			}
 		}
 
-		lootSprite.Draw(win, pixel.IM.Scaled(pixel.ZV, 2.0))
 		g.lock.RLock()
 		pos := g.players[id].Position
+		pos = pos.Map(math.Floor)
 		camPos = pixel.Lerp(camPos, pos, 1-math.Pow(1.0/128, dt))
 		camZoom *= math.Pow(camZoomSpeed, win.MouseScroll().Y)
 		cam := pixel.IM.Scaled(camPos, camZoom).Moved(g.wincenter.Sub(camPos))
 		win.SetMatrix(cam)
 		for _, player := range g.players {
-			playerPos := pixel.IM.Moved(player.Position)
+			if player.ID != id && shared.Distance(pos, player.Position) > 2000 {
+				continue
+			}
+			playerPos := pixel.IM.Moved(player.Position).Moved(playerSprite.Sprite.Frame().Size().ScaledXY(pixel.V(0, -0.25)))
+
 			playerSprite.Draw(win, playerPos, player.Color)
 			if debug {
 				getcube(playerPos, win)
@@ -235,6 +233,14 @@ func run(protocol, addr, id string) error {
 			g.speechLock.RLock()
 			txt, ok := g.playerSpeech[player.ID]
 			g.speechLock.RUnlock()
+
+			if debug {
+				playerText.Clear()
+				playerText.Dot = playerText.Orig
+				playerText.Dot.Y -= 32
+				fmt.Fprintf(playerText, "%s %s", player.ID, player.Position.Map(math.Floor))
+				playerText.DrawColorMask(win, isomatrix.Scaled(pixel.ZV, 2).Moved(pixel.V(0, -64)).Moved(player.Position), colornames.Black)
+			}
 			if ok && len(txt) > 0 {
 				for i, line := range txt {
 					playerText.Clear()
@@ -261,13 +267,10 @@ func run(protocol, addr, id string) error {
 		g.lock.RUnlock()
 
 		// show mouse coordinates
-		mousePos := cam.Unproject(win.MousePosition())
+		mousePos := cam.Unproject(win.MousePosition()).Map(math.Floor)
 		playerText.Clear()
 		playerText.Dot = playerText.Orig
-		mapLoc := shared.IsoToMap(mousePos)
-		mapLoc.X = math.Floor(mapLoc.X)
-		mapLoc.Y = math.Floor(mapLoc.Y)
-		playerText.WriteString(fmt.Sprintf("%s %s", mapLoc, mousePos))
+		playerText.WriteString(fmt.Sprintf("%s %s", mousePos))
 		playerText.DrawColorMask(win, pixel.IM.Moved(mousePos), colornames.White)
 
 		win.Update()
@@ -409,7 +412,7 @@ func (g *GameWorld) processPlayerInput(conn net.Conn, win *pixelgl.Window) error
 	g.action = shared.A_IDLE
 	// mouse movement
 	mousedir := shared.DIR_NONE
-	if win.Pressed(pixelgl.MouseButtonLeft) {
+	if win.Pressed(pixelgl.MouseButtonRight) {
 		mouse := g.centerMatrix.Unproject(win.MousePosition())
 		mousedir = shared.UnitToDirection(mouse.Unit())
 		// set sprite facing
