@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"sync"
 
 	"crypto/md5"
@@ -161,7 +162,7 @@ func (s *mmoServer) handleConnection(conn net.Conn) error {
 		return err
 	}
 
-	pos := pixel.ZV
+	pos := randomSpawnLocation()
 	s.playersLock.Lock()
 	defer s.playersLock.Unlock()
 	s.players[id] = &shared.ServerPlayer{
@@ -346,6 +347,11 @@ func (s *mmoServer) handleMoveRequest(id string, req *shared.MoveRequest) error 
 		return errors.New("requesting player "+id+" is nil??", nil)
 	}
 
+	if s.collides(id, pixel.R(-32, -32, 32, 32).Moved(player.Position.Add(req.Direction.Scaled(2)))) {
+		log.Println("collision detected")
+		return nil
+	}
+
 	player.Position = player.Position.Add(req.Direction.Scaled(2))
 	s.queueUpdate(func() error {
 		return s.broadcastPlayerMoved(id, player.Position, req.Created)
@@ -370,4 +376,22 @@ func (s *mmoServer) queueUpdate(update func() error) {
 	s.updatesLock.Lock()
 	defer s.updatesLock.Unlock()
 	s.updates = append(s.updates, update)
+}
+
+func (s *mmoServer) collides(id string, frame pixel.Rect) bool {
+	for _, p := range s.players {
+		if p.Player.ID == id {
+			continue
+		}
+		if p.Bounds().Intersect(frame).Norm().Area() != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func randomSpawnLocation() pixel.Vec {
+	x := float64(-rand.Intn(50) + rand.Intn(100))
+	y := float64(-rand.Intn(50) + rand.Intn(100))
+	return pixel.V(x, y)
 }
