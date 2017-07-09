@@ -155,12 +155,6 @@ func (s *mmoServer) handleConnection(conn net.Conn) error {
 		return err
 	}
 
-	// echo back connect message
-	err = shared.SendMessage(msg, conn)
-	if err != nil {
-		return err
-	}
-
 	pos := pixel.ZV
 	s.playersLock.Lock()
 	defer s.playersLock.Unlock()
