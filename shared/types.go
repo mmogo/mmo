@@ -3,30 +3,58 @@ package shared
 import (
 	"fmt"
 	"image/color"
-	"net"
 	"strings"
-	"sync"
+	"time"
 
 	"github.com/faiface/pixel"
 )
 
 const fatalErrSig = "**FATAL_ERR**"
 
-type ServerPlayer struct {
-	*Player
-	Conn         net.Conn
-	RequestQueue []*Message
-	QueueLock    sync.RWMutex
-}
-
 type ClientPlayer struct {
-	*Player
-	Color color.Color
+	Player *Player
+	Color  color.Color
 }
 
 type Player struct {
-	ID       string
+	// global unique UUID
+	ID string
+	// cartesian coordinates
 	Position pixel.Vec
+	// direction vector
+	// direction * speed = velocity
+	Direction pixel.Vec
+	// speed is the magnitude of player's velocity
+	// in any direction of movement
+	Speed float64
+	// size in 2 dimensions (x=w, y=h)
+	Size pixel.Vec
+	// player speech; max buffer size 4
+	SpeechBuffer []SpeechMesage
+	// if set to false, player is treaded as though it has been deleted
+	// this allows us to activate/deactivate players without deleting from state
+	Active bool
+}
+
+func (p *Player) DeepCopy() *Player {
+	speechCopy := make([]SpeechMesage, len(p.SpeechBuffer))
+	for i, txt := range p.SpeechBuffer {
+		speechCopy[i] = txt
+	}
+	return &Player{
+		ID:           p.ID,
+		Position:     p.Position,
+		Direction:    p.Direction,
+		Speed:        p.Speed,
+		Size:         p.Size,
+		SpeechBuffer: speechCopy,
+		Active:       p.Active,
+	}
+}
+
+type SpeechMesage struct {
+	Txt       string
+	Timestamp time.Time
 }
 
 type fatalError struct {

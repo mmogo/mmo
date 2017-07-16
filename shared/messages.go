@@ -8,17 +8,17 @@ import (
 )
 
 type Message struct {
-	Sent    time.Time `,omitempty`
-	Request *Request  `,omitempty`
-	Update  *Update   `,omitempty`
-	Error   *Error    `,omitempty`
+	Request *Request `,omitempty`
+	Update  *Update  `,omitempty`
+	Error   *Error   `,omitempty`
 }
 
 type Update struct {
-	PlayerMoved        *PlayerMoved        `,omitempty`
-	PlayerSpoke        *PlayerSpoke        `,omitempty`
-	WorldState         *WorldState         `,omitempty`
-	PlayerDisconnected *PlayerDisconnected `,omitempty`
+	AddPlayer    *AddPlayer    `,omitempty`
+	PlayerMoved  *PlayerMoved  `,omitempty`
+	PlayerSpoke  *PlayerSpoke  `,omitempty`
+	WorldState   *WorldState   `,omitempty`
+	RemovePlayer *RemovePlayer `,omitempty`
 }
 
 type Request struct {
@@ -37,16 +37,20 @@ type ConnectRequest struct {
 
 type MoveRequest struct {
 	Direction pixel.Vec
-	Created   time.Time
 }
 
 type SpeakRequest struct {
 	Text string
 }
 
+type AddPlayer struct {
+	ID       string
+	Position pixel.Vec
+}
+
 type PlayerMoved struct {
 	ID          string
-	NewPosition pixel.Vec
+	Direction   pixel.Vec
 	RequestTime time.Time
 }
 
@@ -56,10 +60,10 @@ type PlayerSpoke struct {
 }
 
 type WorldState struct {
-	Players []*Player
+	World *World
 }
 
-type PlayerDisconnected struct {
+type RemovePlayer struct {
 	ID string
 }
 
@@ -75,16 +79,12 @@ func (m Message) String() string {
 		return m.Update.String()
 	}
 
-	if !m.Sent.IsZero() {
-		return fmt.Sprintf("Ping: %s", m.Sent)
-	}
-
 	return "empty packet"
 }
 
 func (u Update) String() string {
 	if u.PlayerMoved != nil {
-		return fmt.Sprintf("PlayerMoved: %s: %s", u.PlayerMoved.ID, u.PlayerMoved.NewPosition)
+		return fmt.Sprintf("PlayerMoved: %s: %s", u.PlayerMoved.ID, u.PlayerMoved.Direction)
 	}
 
 	if u.PlayerSpoke != nil {
@@ -92,15 +92,13 @@ func (u Update) String() string {
 	}
 
 	if u.WorldState != nil {
-
-		return fmt.Sprintf("WorldState: %v players", len(u.WorldState.Players))
+		return fmt.Sprintf("WorldState: %#v", u.WorldState.World)
 	}
-	if u.PlayerDisconnected != nil {
-		return fmt.Sprintf("PlayerDisconnected: %s", u.PlayerDisconnected)
+	if u.RemovePlayer != nil {
+		return fmt.Sprintf("PlayerDisconnected: %s", u.RemovePlayer)
 	}
 
 	return "empty update"
-
 }
 
 func (r Request) String() string {
