@@ -10,8 +10,8 @@ func ToUpdate(sourceID string, reqContent interface{}) *Update {
 	switch content := reqContent.(type) {
 	case *MoveRequest:
 		return &Update{PlayerMoved: &PlayerMoved{
-			ID:        sourceID,
-			Direction: content.Direction,
+			ID:          sourceID,
+			Destination: content.Destination,
 		}}
 	case *SpeakRequest:
 		return &Update{PlayerSpoke: &PlayerSpoke{

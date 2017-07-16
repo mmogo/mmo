@@ -20,10 +20,8 @@ type Player struct {
 	// global unique UUID
 	ID string
 	// cartesian coordinates
-	Position pixel.Vec
-	// direction vector
-	// direction * speed = velocity
-	Direction pixel.Vec
+	Position    pixel.Vec
+	Destination pixel.Vec
 	// speed is the magnitude of player's velocity
 	// in any direction of movement
 	Speed float64
@@ -44,7 +42,7 @@ func (p *Player) DeepCopy() *Player {
 	return &Player{
 		ID:           p.ID,
 		Position:     p.Position,
-		Direction:    p.Direction,
+		Destination:  p.Destination,
 		Speed:        p.Speed,
 		Size:         p.Size,
 		SpeechBuffer: speechCopy,

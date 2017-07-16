@@ -14,8 +14,15 @@ import (
 	"github.com/mmogo/mmo/shared"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
-	"os"
-	"strconv"
+)
+
+var (
+	map2Screen = func(v pixel.Vec) pixel.Vec {
+		return v.Scaled(10)
+	}
+	screen2Map = func(v pixel.Vec) pixel.Vec {
+		return v.Scaled(1.0/10)
+	}
 )
 
 const (
@@ -26,6 +33,8 @@ const (
 
 	speechDisplayDuration = time.Second * 5
 )
+
+var cam pixel.Matrix
 
 type client struct {
 	conn         net.Conn
@@ -50,7 +59,7 @@ func newClient(id string, conn net.Conn, win *pixelgl.Window, world *shared.Worl
 		world:        world,
 		requests:     requests,
 		updates:      updates,
-		inProcessor:  newInputProcessor(win, requests),
+		inProcessor:  newInputProcessor(win, requests, screen2Map, &cam),
 		reqProcessor: newRequestManager(id, requests, updates, conn),
 		errc:         make(chan error),
 	}
@@ -167,12 +176,7 @@ func (c *client) render() {
 			if !player.Active {
 				return
 			}
-			mappedPos = player.Position
-			if s := os.Getenv("SCALE"); s != "" {
-				scale, err := strconv.Atoi(s)
-				if err != nil {panic(s)}
-				mappedPos = mappedPos.Scaled(float64(scale))
-			}
+			mappedPos = map2Screen(player.Position)
 			transform := pixel.IM.Moved(mappedPos)
 			clr := stringToColor(player.ID)
 			playerAnimation := playerSprite.(*Sprite)
@@ -218,7 +222,7 @@ func (c *client) render() {
 		}
 
 		camPosition = pixel.Lerp(camPosition, windowCenter.Sub(mappedPos), 1-math.Pow(1.0/128, dt.Seconds()))
-		cam := pixel.IM.Moved(camPosition)
+		cam = pixel.IM.Moved(camPosition)
 		mousePos := cam.Unproject(win.MousePosition())
 		if !data.debugMode {
 			txt.Clear()

@@ -36,7 +36,7 @@ type ConnectRequest struct {
 }
 
 type MoveRequest struct {
-	Direction pixel.Vec
+	Destination pixel.Vec
 }
 
 type SpeakRequest struct {
@@ -50,7 +50,7 @@ type AddPlayer struct {
 
 type PlayerMoved struct {
 	ID          string
-	Direction   pixel.Vec
+	Destination pixel.Vec
 	RequestTime time.Time
 }
 
@@ -84,7 +84,7 @@ func (m Message) String() string {
 
 func (u Update) String() string {
 	if u.PlayerMoved != nil {
-		return fmt.Sprintf("PlayerMoved: %s: %s", u.PlayerMoved.ID, u.PlayerMoved.Direction)
+		return fmt.Sprintf("PlayerMoved: %s: %s", u.PlayerMoved.ID, u.PlayerMoved.Destination)
 	}
 
 	if u.PlayerSpoke != nil {
@@ -106,7 +106,7 @@ func (r Request) String() string {
 		return fmt.Sprintf("ConnectRequest: %v", r.ConnectRequest.ID)
 	}
 	if r.MoveRequest != nil {
-		return fmt.Sprintf("MoveRequest: %s", r.MoveRequest.Direction)
+		return fmt.Sprintf("MoveRequest: %s", r.MoveRequest.Destination)
 	}
 	if r.SpeakRequest != nil {
 		return fmt.Sprintf("SpeakRequest: %s", r.SpeakRequest.Text)

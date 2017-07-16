@@ -7,26 +7,28 @@ import (
 )
 
 type inputCache struct {
-	direction pixel.Vec
+	destination pixel.Vec
 }
 
 //input processor detects user inputs and generates requests
 type inputProcessor struct {
 	win            *pixelgl.Window
-	centerMatrix   pixel.Matrix
+	cam            *pixel.Matrix
 	requestsToSend chan *shared.Request
 	cache          inputCache
+	screen2Map     projectionFunc
 
 	//related to speech, consider wrapping in a struct
 	typing bool
 	typed  string
 }
 
-func newInputProcessor(win *pixelgl.Window, requests chan *shared.Request) *inputProcessor {
+func newInputProcessor(win *pixelgl.Window, requests chan *shared.Request, screen2Map projectionFunc, cam *pixel.Matrix) *inputProcessor {
 	return &inputProcessor{
 		win:            win,
-		centerMatrix:   pixel.IM.Moved(win.Bounds().Center()),
+		cam:            cam,
 		requestsToSend: requests,
+		screen2Map:     screen2Map,
 	}
 }
 
@@ -39,17 +41,16 @@ func (ip *inputProcessor) handleInputs(player *shared.Player, data *renderData) 
 }
 
 func (ip *inputProcessor) handleMovement(player *shared.Player) {
-	direction := pixel.ZV
 	if ip.win.Pressed(pixelgl.MouseButtonLeft) {
-		mouseWorldCoordinates := shared.RoundVec(ip.centerMatrix.Unproject(ip.win.MousePosition()), 1)
-		direction = shared.RoundVec(mouseWorldCoordinates.Unit(), 1)
-	}
-	// dont send request if player already in this direction
-	if direction != player.Direction && direction != ip.cache.direction {
-		ip.cache.direction = direction
-		ip.pushRequest(&shared.Request{MoveRequest: &shared.MoveRequest{
-			Direction: direction,
-		}})
+		mouseWorldCoordinates := shared.RoundVec(ip.cam.Unproject(ip.win.MousePosition()), 1)
+		destination := ip.screen2Map(mouseWorldCoordinates)
+		// dont send request if player already in this direction
+		if destination != player.Destination && destination != ip.cache.destination {
+			ip.cache.destination = destination
+			ip.pushRequest(&shared.Request{MoveRequest: &shared.MoveRequest{
+				Destination: destination,
+			}})
+		}
 	}
 }
 

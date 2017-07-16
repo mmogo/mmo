@@ -8,6 +8,12 @@ import (
 	"github.com/faiface/pixel"
 )
 
+// retuns whether or not the scalar distance between
+// v1 and v2 is <= r
+func WithinRange(v1, v2 pixel.Vec, r float64) bool {
+	return v1.Sub(v2).Len() <= r
+}
+
 func RandVec(min, max float64) pixel.Vec {
 	return pixel.V((max-min)*(rand.Float64()-1/2), (max-min)*(rand.Float64()-1/2))
 }

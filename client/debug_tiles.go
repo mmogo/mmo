@@ -54,7 +54,7 @@ func debugCoordsBatch() *pixel.Batch {
 func grid(f func(x, y float64)) {
 	start := time.Now()
 	i := 0
-	magnitude := 25.0
+	magnitude := 125.0
 	for y := -1 * magnitude; y < magnitude; y++ {
 		for x := -1 * magnitude; x < magnitude; x++ {
 			i++

@@ -63,9 +63,10 @@ func (w *World) Step(dt time.Duration) (err error) {
 	w.playersLock.Lock()
 	defer w.playersLock.Unlock()
 	for id, player := range w.Players {
-		// update player positions based on velocity
-		if player.Direction != pixel.ZV {
-			newPos := player.Position.Add(player.Direction.Unit().Scaled(player.Speed * dt.Seconds()))
+		// update player positions based on speed and destination
+		if !WithinRange(player.Destination, player.Position, 0.005) {
+			// TODO change this to use astar pathing
+			newPos := player.Position.Add(player.Destination.Sub(player.Position).Scaled(player.Speed * dt.Seconds()))
 			//check collisions
 			var collisionFound bool
 			hitbox := RectFromCenter(newPos, player.Size.X, player.Size.Y)
@@ -124,7 +125,7 @@ func (w *World) addPlayer(added *AddPlayer) error {
 	w.setPlayer(added.ID, &Player{
 		ID:           added.ID,
 		Position:     added.Position,
-		Direction:    pixel.ZV,
+		Destination:  added.Position,
 		Speed:        basePlayerSpeed,
 		Size:         defaultSize,
 		SpeechBuffer: []SpeechMesage{},
@@ -138,7 +139,7 @@ func (w *World) applyPlayerMoved(moved *PlayerMoved) error {
 	if err != nil {
 		return err
 	}
-	player.Direction = moved.Direction
+	player.Destination = moved.Destination
 	return nil
 }
 
