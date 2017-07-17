@@ -16,32 +16,38 @@ import (
 	"golang.org/x/image/font/basicfont"
 )
 
-var (
-	map2Screen = func(v pixel.Vec) pixel.Vec {
-		return v.Scaled(10)
-	}
-	screen2Map = func(v pixel.Vec) pixel.Vec {
-		return v.Scaled(1.0/10)
-	}
-)
-
 const (
+	gameScale = 32.0
+
 	maxBufferedUpdates  = 30
 	maxBufferedRequests = 30
 
-	tickTime = time.Second / 10 //10 updates per sec
+	tickTime = time.Second / 1 //10 updates per sec
 
 	speechDisplayDuration = time.Second * 5
 )
 
-var cam pixel.Matrix
+var (
+	map2Screen = func(v pixel.Vec) pixel.Vec {
+		return v.Scaled(gameScale)
+	}
+	screen2Map = func(v pixel.Vec) pixel.Vec {
+		return shared.RoundVec(v.Scaled(1.0/gameScale), 0)
+	}
+
+	lastStep time.Time
+
+	cam pixel.Matrix
+)
 
 type client struct {
 	conn         net.Conn
 	win          *pixelgl.Window
 	playerID     string
+	prevWorld    *shared.World
 	world        *shared.World
 	updates      chan *shared.Update
+	predictions  chan *shared.Update
 	requests     chan *shared.Request
 	inProcessor  *inputProcessor
 	reqProcessor *requestProcessor
@@ -51,6 +57,7 @@ type client struct {
 func newClient(id string, conn net.Conn, win *pixelgl.Window, world *shared.World) *client {
 	requests := make(chan *shared.Request, maxBufferedRequests)
 	updates := make(chan *shared.Update, maxBufferedUpdates)
+	predictions := make(chan *shared.Update, maxBufferedUpdates)
 
 	return &client{
 		conn:         conn,
@@ -59,8 +66,9 @@ func newClient(id string, conn net.Conn, win *pixelgl.Window, world *shared.Worl
 		world:        world,
 		requests:     requests,
 		updates:      updates,
+		predictions:  predictions,
 		inProcessor:  newInputProcessor(win, requests, screen2Map, &cam),
-		reqProcessor: newRequestManager(id, requests, updates, conn),
+		reqProcessor: newRequestManager(id, requests, predictions, conn),
 		errc:         make(chan error),
 	}
 }
@@ -71,7 +79,7 @@ func (c *client) start() {
 	go c.handleErrors()
 	go c.stepWorld()
 
-	log.Printf("client started")
+	log.Info("client started")
 
 	c.render()
 }
@@ -82,17 +90,17 @@ func (c *client) handleErrors() {
 		if shared.IsFatal(err) {
 			log.Fatal(err)
 		}
-		log.Printf("Error: %v", err)
+		log.Errorf("Error: %v", err)
 	}
 }
 
 func (c *client) readUpdates() {
-	loop := func() error {
+	readUpdate := func() error {
 		msg, err := shared.GetMessage(c.conn)
 		if err != nil {
 			return shared.FatalErr(err)
 		}
-		log.Println("RECV", msg)
+		log.Debugf("RECV", msg)
 		if msg.Error != nil {
 			return fmt.Errorf("server returned an error: %v", msg.Error.Message)
 		}
@@ -102,7 +110,7 @@ func (c *client) readUpdates() {
 		return nil
 	}
 	for {
-		if err := loop(); err != nil {
+		if err := readUpdate(); err != nil {
 			c.errc <- err
 			continue
 		}
@@ -114,6 +122,8 @@ func (c *client) processUpdates() {
 		select {
 		case update := <-c.updates:
 			c.world.ApplyUpdate(update)
+		case prediction := <-c.predictions:
+			c.prevWorld.ApplyUpdate(prediction)
 		}
 	}
 }
