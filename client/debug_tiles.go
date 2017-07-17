@@ -15,9 +15,7 @@ import (
 	"golang.org/x/image/font/basicfont"
 )
 
-var tileSize = 64.0
-
-func debugTiles() *pixel.Batch {
+func debugTiles(tileSize float64) *pixel.Batch {
 	batch := pixel.NewBatch(&pixel.TrianglesData{}, nil)
 	// http://flarerpg.org/tutorials/isometric_intro/
 	imd := imdraw.New(nil)
@@ -33,13 +31,13 @@ func debugTiles() *pixel.Batch {
 	return batch
 }
 
-var coordbatch = debugCoordsBatch()
+var coordbatch = debugCoordsBatch(gameScale)
 
 func drawDebugCoords(target pixel.Target) {
 	coordbatch.Draw(target)
 }
 
-func debugCoordsBatch() *pixel.Batch {
+func debugCoordsBatch(tileSize float64) *pixel.Batch {
 	coords := text.New(pixel.ZV, text.NewAtlas(basicfont.Face7x13, text.ASCII))
 	batch := pixel.NewBatch(&pixel.TrianglesData{}, coords.Atlas().Picture())
 	grid(func(x, y float64) {
