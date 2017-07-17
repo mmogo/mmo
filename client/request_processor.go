@@ -48,6 +48,7 @@ func (reqProcessor *requestProcessor) handleRequest(req *shared.Request) error {
 	switch {
 	case req.MoveRequest != nil:
 		reqProcessor.updatePredictions <- shared.ToUpdate(reqProcessor.playerID, req.MoveRequest)
+		log.Printf("update prediction: %v", req.MoveRequest.Destination)
 	case req.SpeakRequest != nil:
 		reqProcessor.updatePredictions <- shared.ToUpdate(reqProcessor.playerID, req.SpeakRequest)
 	default:

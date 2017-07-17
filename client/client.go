@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	gameScale = 32.0
+	gameScale = 64.0
 
 	maxBufferedUpdates  = 30
 	maxBufferedRequests = 30
@@ -76,6 +76,13 @@ func newClient(id string, conn net.Conn, win *pixelgl.Window, world *shared.Worl
 func (c *client) start() {
 	go c.readUpdates()
 	go c.processUpdates()
+	go func() {
+		for {
+			if err := c.reqProcessor.processPending(); err != nil {
+				c.errc <- err
+			}
+		}
+	}()
 	go c.handleErrors()
 	go c.stepWorld()
 
@@ -134,10 +141,9 @@ func (c *client) stepWorld() {
 	for {
 		select {
 		case now := <-tick.C:
-			if err := c.reqProcessor.processPending(); err != nil {
-				c.errc <- err
-			}
+			c.prevWorld = c.world.DeepCopy()
 			c.world.Step(now.Sub(last))
+			lastStep = time.Now()
 		}
 		last = time.Now()
 	}
@@ -169,6 +175,9 @@ func (c *client) render() {
 	second := time.NewTicker(time.Second)
 
 	for !win.Closed() {
+		if c.prevWorld == nil {
+			continue
+		}
 		dt := time.Since(last)
 		last = time.Now()
 		win.Clear(colornames.Darkgray)
@@ -182,7 +191,9 @@ func (c *client) render() {
 		var selfTransform pixel.Matrix
 		var mappedPos pixel.Vec
 
-		c.world.ForEach(func(player *shared.Player) {
+		c.prevWorld.Step(dt)
+		//LerpWorld(c.prevWorld, c.world, time.Since(lastStep).Seconds()/tickTime.Seconds()).ForEach(func(player *shared.Player) {
+		c.prevWorld.ForEach(func(player *shared.Player) {
 			if !player.Active {
 				return
 			}
@@ -233,11 +244,11 @@ func (c *client) render() {
 
 		camPosition = pixel.Lerp(camPosition, windowCenter.Sub(mappedPos), 1-math.Pow(1.0/128, dt.Seconds()))
 		cam = pixel.IM.Moved(camPosition)
-		mousePos := cam.Unproject(win.MousePosition())
 		if !data.debugMode {
+			mousePos := cam.Unproject(win.MousePosition())
 			txt.Clear()
 			txt.Dot = txt.Orig
-			txt.WriteString(fmt.Sprintf("%v", mousePos))
+			txt.WriteString(fmt.Sprintf("%v", screen2Map(mousePos)))
 			txt.DrawColorMask(win, pixel.IM.Moved(mousePos), colornames.White)
 		}
 

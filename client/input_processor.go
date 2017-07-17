@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/mmogo/mmo/shared"
@@ -46,6 +48,7 @@ func (ip *inputProcessor) handleMovement(player *shared.Player) {
 		destination := ip.screen2Map(mouseWorldCoordinates)
 		// dont send request if player already in this direction
 		if destination != player.Destination && destination != ip.cache.destination {
+			log.Printf("newdest %v", destination)
 			ip.cache.destination = destination
 			ip.pushRequest(&shared.Request{MoveRequest: &shared.MoveRequest{
 				Destination: destination,
