@@ -269,7 +269,7 @@ type renderData struct {
 func (c *client) loadDrawables() (*renderData, error) {
 	drawables := make(map[string]drawable)
 	batches := make(map[string]*pixel.Batch)
-	batches["debug_grid"] = debugTiles()
+	batches["debug_grid"] = debugTiles(gameScale)
 	lootImage, err := loadImage("sprites/loot.png")
 	if err != nil {
 		return nil, errors.New("failed to load image", err)
