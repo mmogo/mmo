@@ -21,16 +21,22 @@ type World struct {
 	//treat this field as unexported
 	Players     map[string]*Player
 	playersLock sync.RWMutex
+	previous    *World
+	updated     time.Time
 }
 
 func NewEmptyWorld() *World {
 	return &World{
 		Players: make(map[string]*Player),
+		updated: time.Now(),
 	}
 }
 
 func (w *World) DeepCopy() *World {
 	cpy := NewEmptyWorld()
+	if w.previous != nil {
+		cpy.previous = w.previous.DeepCopy()
+	}
 	w.playersLock.RLock()
 	defer w.playersLock.RUnlock()
 	for id, player := range w.Players {
@@ -58,15 +64,35 @@ func (w *World) ApplyUpdate(update *Update) (err error) {
 	return errors.New("empty update given? wtf", nil)
 }
 
+// At returns the most recent world that existed at time t
+func (w *World) At(t time.Time) *World {
+	if w.updated.Before(t) {
+		return w
+	}
+	if w.previous != nil {
+		return w.previous.At(t)
+	}
+	// be careful of nil pointers
+	return nil
+}
+
+// Trim trims snapsohts at and before time t
+func (w *World) Trim(t time.Time) {
+	*(w.At(t)) = nil
+}
+
 // process game-world self update
+// step wraps the previous state for rolling back
 func (w *World) Step(dt time.Duration) (err error) {
+	w.previous = w.DeepCopy()
+	w.updated = time.Now()
 	w.playersLock.Lock()
 	defer w.playersLock.Unlock()
 	for id, player := range w.Players {
 		// update player positions based on speed and destination
 		if !WithinRange(player.Destination, player.Position, 0.5) {
 			// TODO change this to use astar pathing
-			newPos := RoundVec(player.Position.Add(player.Destination.Sub(player.Position).Unit().Scaled(player.Speed * dt.Seconds())), 5)
+			newPos := RoundVec(player.Position.Add(player.Destination.Sub(player.Position).Unit().Scaled(player.Speed*dt.Seconds())), 5)
 			//check collisions
 			var collisionFound bool
 			hitbox := RectFromCenter(newPos, player.Size.X, player.Size.Y)

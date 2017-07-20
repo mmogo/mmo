@@ -20,6 +20,13 @@ type updateManager struct {
 	connectedPlayersLock sync.RWMutex
 }
 
+// WHAT I WANNA DO IS: TODO
+// world will generate updates to send to the player(s) on each step
+// collect requests from client, aggregate them (apply)
+// requests are all DESIRES; we process them durign step and
+// decide what updates to qwueue back to the player
+//
+
 func newUpdateManager() *updateManager {
 	return &updateManager{
 		world:            shared.NewEmptyWorld(),

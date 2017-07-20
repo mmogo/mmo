@@ -44,7 +44,6 @@ type client struct {
 	conn         net.Conn
 	win          *pixelgl.Window
 	playerID     string
-	prevWorld    *shared.World
 	world        *shared.World
 	updates      chan *shared.Update
 	predictions  chan *shared.Update
