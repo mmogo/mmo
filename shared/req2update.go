@@ -9,7 +9,7 @@ import "fmt"
 func ToUpdate(sourceID string, reqContent interface{}) *Update {
 	switch content := reqContent.(type) {
 	case *MoveRequest:
-		return &Update{PlayerMoved: &PlayerMoved{
+		return &Update{PlayerDestination: &PlayerDestination{
 			ID:          sourceID,
 			Destination: content.Destination,
 		}}

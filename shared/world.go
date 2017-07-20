@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"log"
 	"sync"
 	"time"
 
@@ -21,15 +22,24 @@ type World struct {
 	//treat this field as unexported
 	Players     map[string]*Player
 	playersLock sync.RWMutex
-	previous    *World
-	updated     time.Time
+	// these are used for creating a series of buffered world snapshots
+	//automatically created on each step
+	previous *World
+	Updated  time.Time
+	// processed is for updates that have been processed
+	processed chan *Update
 }
 
 func NewEmptyWorld() *World {
 	return &World{
-		Players: make(map[string]*Player),
-		updated: time.Now(),
+		Players:   make(map[string]*Player),
+		processed: make(chan *Update),
+		Updated:   time.Now(),
 	}
+}
+
+func (w *World) ProcessedUpdates() <-chan *Update {
+	return w.processed
 }
 
 func (w *World) DeepCopy() *World {
@@ -45,12 +55,33 @@ func (w *World) DeepCopy() *World {
 	return cpy
 }
 
-func (w *World) ApplyUpdate(update *Update) (err error) {
+func (w *World) finishUpdate(update *Update) {
+	update.Processed = time.Now()
+	go func() {
+		w.processed <- update
+	}()
+}
+
+func (w *World) ApplyUpdates(updates ...*Update) error {
+	for _, update := range updates {
+		log.Printf("applying %s", update.String())
+		if err := w.applyUpdate(update); err != nil {
+			return err
+		}
+		w.finishUpdate(update)
+	}
+	return nil
+}
+
+func (w *World) applyUpdate(update *Update) error {
 	if update.AddPlayer != nil {
 		return w.addPlayer(update.AddPlayer)
 	}
-	if update.PlayerMoved != nil {
-		return w.applyPlayerMoved(update.PlayerMoved)
+	if update.PlayerDestination != nil {
+		return w.updateDestination(update.PlayerDestination)
+	}
+	if update.PlayerPosition != nil {
+		return w.updatePosition(update.PlayerPosition)
 	}
 	if update.PlayerSpoke != nil {
 		return w.applyPlayerSpoke(update.PlayerSpoke)
@@ -64,28 +95,62 @@ func (w *World) ApplyUpdate(update *Update) (err error) {
 	return errors.New("empty update given? wtf", nil)
 }
 
-// At returns the most recent world that existed at time t
-func (w *World) At(t time.Time) *World {
-	if w.updated.Before(t) {
+func (w *World) Len() int {
+	if w.previous == nil {
+		return 1
+	}
+	return w.previous.Len() + 1
+}
+
+// Before returns the most recent world that existed before t
+func (w *World) Before(t time.Time) *World {
+	log.Printf("%s\n%s (%v left)", t, w.Updated, w.Len())
+	if w.Updated.Before(t) {
 		return w
 	}
 	if w.previous != nil {
-		return w.previous.At(t)
+		return w.previous.Before(t)
 	}
-	// be careful of nil pointers
-	return nil
+	// if no world existed before t, just return the earliest available world
+	return w
+}
+
+func (w *World) Prev() *World {
+	return w.previous
 }
 
 // Trim trims snapsohts at and before time t
 func (w *World) Trim(t time.Time) {
-	*(w.At(t)) = nil
+	trimFrom := w.Before(t)
+	prev := w.previous
+	next := w
+	for prev != nil {
+		if prev == trimFrom {
+			next.previous = nil
+		}
+		tmp := prev.previous
+		next = prev
+		prev = tmp
+	}
+}
+
+// Keep drops all snapshots after the nth
+func (w *World) Keep(n int) {
+	if n == 1 {
+		w.previous = nil
+	}
+	// n should always be >= 1
+	if n < 1 {
+		return
+	}
+	w.Keep(n - 1)
 }
 
 // process game-world self update
 // step wraps the previous state for rolling back
 func (w *World) Step(dt time.Duration) (err error) {
 	w.previous = w.DeepCopy()
-	w.updated = time.Now()
+	w.Updated = time.Now()
 	w.playersLock.Lock()
 	defer w.playersLock.Unlock()
 	for id, player := range w.Players {
@@ -111,6 +176,8 @@ func (w *World) Step(dt time.Duration) (err error) {
 				continue
 			}
 			player.Position = newPos
+			// on new player position, send internal update
+			w.finishUpdate(&Update{PlayerPosition: &PlayerPosition{ID: player.ID, Position: newPos}})
 		}
 	}
 	return nil
@@ -160,12 +227,21 @@ func (w *World) addPlayer(added *AddPlayer) error {
 	return nil
 }
 
-func (w *World) applyPlayerMoved(moved *PlayerMoved) error {
+func (w *World) updateDestination(dest *PlayerDestination) error {
+	player, err := w.getActivePlayer(dest.ID)
+	if err != nil {
+		return err
+	}
+	player.Destination = dest.Destination
+	return nil
+}
+
+func (w *World) updatePosition(moved *PlayerPosition) error {
 	player, err := w.getActivePlayer(moved.ID)
 	if err != nil {
 		return err
 	}
-	player.Destination = moved.Destination
+	player.Position = moved.Position
 	return nil
 }
 

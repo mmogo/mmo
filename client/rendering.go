@@ -43,6 +43,6 @@ func LerpPlayer(p1, p2 *shared.Player, t float64) *shared.Player {
 	lerpedPlayer.Position = pixel.Lerp(p1.Position, p2.Position, t)
 	lerpedPlayer.Destination = pixel.Lerp(p1.Destination, p2.Destination, t)
 	lerpedPlayer.Size = pixel.Lerp(p1.Size, p2.Size, t)
-	lerpedPlayer.Speed = p1.Speed + (p2.Speed - p1.Speed) * t
+	lerpedPlayer.Speed = p1.Speed + (p2.Speed-p1.Speed)*t
 	return lerpedPlayer
 }

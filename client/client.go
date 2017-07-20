@@ -22,7 +22,7 @@ const (
 	maxBufferedUpdates  = 30
 	maxBufferedRequests = 30
 
-	tickTime = time.Second / 1 //10 updates per sec
+	tickTime = time.Second / 10 //10 updates per sec
 
 	speechDisplayDuration = time.Second * 5
 )
@@ -35,22 +35,21 @@ var (
 		return shared.RoundVec(v.Scaled(1.0/gameScale), 0)
 	}
 
-	lastStep time.Time
-
 	cam pixel.Matrix
 )
 
 type client struct {
-	conn         net.Conn
-	win          *pixelgl.Window
-	playerID     string
-	world        *shared.World
-	updates      chan *shared.Update
-	predictions  chan *shared.Update
-	requests     chan *shared.Request
-	inProcessor  *inputProcessor
-	reqProcessor *requestProcessor
-	errc         chan error
+	conn            net.Conn
+	win             *pixelgl.Window
+	playerID        string
+	world           *shared.World
+	updates         chan *shared.Update
+	predictions     chan *shared.Update
+	requests        chan *shared.Request
+	inProcessor     *inputProcessor
+	reqProcessor    *requestProcessor
+	errc            chan error
+	bufferedUpdates UpdateBuffer
 }
 
 func newClient(id string, conn net.Conn, win *pixelgl.Window, world *shared.World) *client {
@@ -126,10 +125,20 @@ func (c *client) readUpdates() {
 func (c *client) processUpdates() {
 	for {
 		select {
+		//authoritative, server-sent
 		case update := <-c.updates:
-			c.world.ApplyUpdate(update)
+			c.world = c.world.Before(update.Processed)
+			c.bufferedUpdates = c.bufferedUpdates.From(update.Processed)
+			if err := c.world.ApplyUpdates(update); err != nil {
+				c.errc <- err
+			}
+			if err := c.world.ApplyUpdates(c.bufferedUpdates...); err != nil {
+				c.errc <- err
+			}
 		case prediction := <-c.predictions:
-			c.prevWorld.ApplyUpdate(prediction)
+			c.world.ApplyUpdates(prediction)
+		case processed := <-c.world.ProcessedUpdates():
+			c.bufferedUpdates.Insert(processed)
 		}
 	}
 }
@@ -140,9 +149,7 @@ func (c *client) stepWorld() {
 	for {
 		select {
 		case now := <-tick.C:
-			c.prevWorld = c.world.DeepCopy()
 			c.world.Step(now.Sub(last))
-			lastStep = time.Now()
 		}
 		last = time.Now()
 	}
@@ -174,7 +181,9 @@ func (c *client) render() {
 	second := time.NewTicker(time.Second)
 
 	for !win.Closed() {
-		if c.prevWorld == nil {
+		prev := c.world.Prev()
+		// wait for a step
+		if prev == nil {
 			continue
 		}
 		dt := time.Since(last)
@@ -190,9 +199,7 @@ func (c *client) render() {
 		var selfTransform pixel.Matrix
 		var mappedPos pixel.Vec
 
-		c.prevWorld.Step(dt)
-		//LerpWorld(c.prevWorld, c.world, time.Since(lastStep).Seconds()/tickTime.Seconds()).ForEach(func(player *shared.Player) {
-		c.prevWorld.ForEach(func(player *shared.Player) {
+		LerpWorld(prev, c.world, c.world.Updated.Sub(prev.Updated).Seconds()).ForEach(func(player *shared.Player) {
 			if !player.Active {
 				return
 			}

@@ -216,7 +216,25 @@ func (s *mmoServer) update(dt time.Duration) error {
 		}
 	}
 	// update world
-	return s.mgr.world.Step(dt)
+	if err := s.mgr.world.Step(dt); err != nil {
+		return fmt.Errorf("in step: %v", err)
+	}
+
+	// only keep the last 3 snapshots
+	s.mgr.world.Keep(3)
+
+	// broadcast all updates to clients
+	for {
+		select {
+		default:
+			return nil
+		case update := <-s.mgr.world.ProcessedUpdates():
+			log.Printf("gonna broadcast: %s", update)
+			if err := s.mgr.broadcast(&shared.Message{Update: update}); err != nil {
+				return errors.New("failed to broadcast update", err)
+			}
+		}
+	}
 }
 
 func (s *mmoServer) handleRequest(player *shared.Player, req *shared.Request) error {
@@ -224,7 +242,7 @@ func (s *mmoServer) handleRequest(player *shared.Player, req *shared.Request) er
 	case req.MoveRequest != nil:
 		return s.mgr.playerMoved(player, req.MoveRequest)
 	case req.SpeakRequest != nil:
-		return s.mgr.applyAndBroadcast(&shared.PlayerSpoke{
+		return s.mgr.apply(&shared.PlayerSpoke{
 			ID:   player.ID,
 			Text: req.SpeakRequest.Text,
 		})

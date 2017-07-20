@@ -86,27 +86,26 @@ func (mgr *updateManager) broadcast(msg *shared.Message) error {
 	return nil
 }
 
-func (mgr *updateManager) applyAndBroadcast(updateContents interface{}) error {
+func (mgr *updateManager) apply(updateContents interface{}) error {
 	update := &shared.Update{}
 	switch contents := updateContents.(type) {
 	case *shared.AddPlayer:
 		update.AddPlayer = contents
 	case *shared.RemovePlayer:
 		update.RemovePlayer = contents
-	case *shared.PlayerMoved:
-		update.PlayerMoved = contents
+	case *shared.PlayerDestination:
+		update.PlayerDestination = contents
+	case *shared.PlayerPosition:
+		update.PlayerPosition = contents
 	case *shared.PlayerSpoke:
 		update.PlayerSpoke = contents
 	default:
 		return fmt.Errorf("unknown update type: %#v", updateContents)
 	}
-	if err := mgr.world.ApplyUpdate(update); err != nil {
+	if err := mgr.world.ApplyUpdates(update); err != nil {
 		return fmt.Errorf("failed to apply update %v: %v", update, err)
 	}
 
-	if err := mgr.broadcast(&shared.Message{Update: update}); err != nil {
-		return errors.New("failed to broadcast update", err)
-	}
 	return nil
 }
 
@@ -126,7 +125,7 @@ func (mgr *updateManager) playerConnected(id string, conn net.Conn) error {
 		return fmt.Errorf("Player %s already connected", id)
 	}
 
-	if err := mgr.applyAndBroadcast(&shared.AddPlayer{
+	if err := mgr.apply(&shared.AddPlayer{
 		ID: id,
 		// todo: dont pick random starting positions. rework how collisions work
 		Position: shared.RandVec(-20, 20),
@@ -157,7 +156,7 @@ func (mgr *updateManager) playerDisconnected(id string) error {
 	delete(mgr.connectedPlayers, id)
 	mgr.connectedPlayersLock.Unlock()
 
-	return mgr.applyAndBroadcast(&shared.RemovePlayer{
+	return mgr.apply(&shared.RemovePlayer{
 		ID: id,
 	})
 }
@@ -167,6 +166,6 @@ func (mgr *updateManager) playerMoved(player *shared.Player, move *shared.MoveRe
 		//no-op, ignore this request
 		return nil
 	}
-	moveUpdate := shared.ToUpdate(player.ID, move).PlayerMoved
-	return mgr.applyAndBroadcast(moveUpdate)
+	moveUpdate := shared.ToUpdate(player.ID, move).PlayerDestination
+	return mgr.apply(moveUpdate)
 }
