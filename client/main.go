@@ -9,6 +9,10 @@ import (
 	"log"
 	"net"
 
+	"os"
+	"os/signal"
+	"runtime/pprof"
+
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/ilackarms/pkg/errors"
@@ -40,6 +44,23 @@ func main() {
 	if *id == "" {
 		log.Fatal("id must be provided")
 	}
+
+	f, err := os.Create("cpuprofile")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	go func() {
+		for sig := range c {
+			pprof.StopCPUProfile()
+			log.Fatalf("detected sig: %s, shutting down", sig)
+		}
+	}()
 	pixelgl.Run(func() {
 		if err := run(*protocol, *addr, *id); err != nil {
 			log.Fatal(err)

@@ -155,9 +155,9 @@ func (w *World) Step(dt time.Duration) (err error) {
 	defer w.playersLock.Unlock()
 	for id, player := range w.Players {
 		// update player positions based on speed and destination
-		if !WithinRange(player.Destination, player.Position, 0.5) {
+		if !WithinRange(player.Destination, player.Position, 1) {
 			// TODO change this to use astar pathing
-			newPos := RoundVec(player.Position.Add(player.Destination.Sub(player.Position).Unit().Scaled(player.Speed*dt.Seconds())), 5)
+			newPos := RoundVec(player.Position.Add(player.Destination.Sub(player.Position).Unit().Scaled(player.Speed*dt.Seconds())), 0)
 			//check collisions
 			var collisionFound bool
 			hitbox := RectFromCenter(newPos, player.Size.X, player.Size.Y)

@@ -22,7 +22,7 @@ const (
 	maxBufferedUpdates  = 30
 	maxBufferedRequests = 30
 
-	tickTime = time.Second / 10 //10 updates per sec
+	tickTime = time.Second / 2 //10 updates per sec
 
 	speechDisplayDuration = time.Second * 5
 )
@@ -180,8 +180,16 @@ func (c *client) render() {
 	fps := 0 // calculated frames per second
 	second := time.NewTicker(time.Second)
 
+	var lerpTime time.Duration
+
+	var prev *shared.World
+
 	for !win.Closed() {
-		prev := c.world.Prev()
+		// a step happened
+		if prev != c.world.Prev() {
+			prev = c.world.Prev()
+			lerpTime = 0
+		}
 		// wait for a step
 		if prev == nil {
 			continue
@@ -199,7 +207,8 @@ func (c *client) render() {
 		var selfTransform pixel.Matrix
 		var mappedPos pixel.Vec
 
-		LerpWorld(prev, c.world, c.world.Updated.Sub(prev.Updated).Seconds()).ForEach(func(player *shared.Player) {
+		lerpTime += dt
+		LerpWorld(prev, c.world, (lerpTime/c.world.Updated.Sub(prev.Updated)).Seconds()).ForEach(func(player *shared.Player) {
 			if !player.Active {
 				return
 			}
