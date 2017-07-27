@@ -23,24 +23,22 @@ var addr = flag.String("addr", "localhost:8080", "http service address")
 var playerID = flag.String("id", "", "player id to use")
 var confFile = flag.String("conf", "login.txt", "login config file")
 var protocol = flag.String("protocol", "udp", fmt.Sprintf("network protocol to use."))
+var out io.Writer
 
 func main() {
 	flag.Parse()
-
-	logFile, err := os.Create("game.log")
+	logFile, err := os.OpenFile("game.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+	} else {
+		out = io.MultiWriter(logFile, os.Stdout)
+		log.SetOutput(out)
 	}
-
-	out := io.MultiWriter(logFile, os.Stdout)
-
-	logger := log.New(out, "", log.LstdFlags)
-
 	if *playerID == "" {
-		confData, err := ioutil.ReadFile(*confFile)
-		if err != nil {
-			logger.Fatalf("%s not found: %v", *confFile, err)
-		}
+		*playerID = uuid.New()
+	}
+	if confData, err := ioutil.ReadFile(*confFile); err == nil {
+		log.Printf("reading %q", *confFile)
 		lines := strings.Split(string(confData), "\n")
 		for _, line := range lines {
 			line = strings.Replace(line, " ", "", -1)
@@ -59,21 +57,26 @@ func main() {
 
 			conf, err := os.Create(*confFile)
 			if err != nil {
-				logger.Fatal(err)
+				log.Fatal(err)
 			}
 			if runtime.GOOS == "windows" {
 				if _, err := fmt.Fprintf(conf, "%s\r\nplayer_id=%s", updatedConf, *playerID); err != nil {
-					logger.Fatal(err)
+					log.Fatal(err)
 				}
 			} else {
 				if _, err := fmt.Fprintf(conf, "%s\nplayer_id=%s", updatedConf, *playerID); err != nil {
-					logger.Fatal(err)
+					log.Fatal(err)
 				}
 			}
 
 		}
 	}
 
+	gui()
+
+}
+
+func getClientName() string {
 	var clientName string
 	switch runtime.GOOS {
 	case "windows":
@@ -84,21 +87,19 @@ func main() {
 		clientName = "client-linux-amd64"
 	}
 
-	if err := downloadClient(clientName); err != nil {
-		logger.Fatal(err)
-	}
+	return clientName
+}
 
+func runClient(clientName string) error {
 	cwd, err := os.Getwd()
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
-
 	cmd := exec.Command(filepath.Join(cwd, clientName), "--addr", *addr, "--id", *playerID, "--protocol", *protocol)
-	cmd.Stdout = out
-	cmd.Stderr = out
 	if err := cmd.Run(); err != nil {
-		logger.Fatal(err)
+		log.Fatal(err)
 	}
+	return nil
 }
 
 func downloadClient(clientName string) error {
@@ -109,21 +110,24 @@ func downloadClient(clientName string) error {
 		if _, err := io.Copy(h, currentClient); err != nil {
 			return err
 		}
-		checksum = string(h.Sum(nil))
+		checksum = fmt.Sprintf("%x", h.Sum(nil))
 	}
 	query := url.Values{}
 	query.Set("checksum", checksum)
-
 	res, err := lxhttpclient.GetAsync(*addr, "/"+clientName+"?"+query.Encode(), nil)
 	if err != nil {
 		return err
 	}
 	//we already have the right client, skip download
 	if res.StatusCode == http.StatusNoContent {
-		log.Printf("skipping download")
+		log.Printf("up to date, skipping download")
 		return nil
 	}
-	log.Printf("downloading client")
+
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("error while downloading: %s", res.Status)
+	}
+	log.Printf("downloading client %q", clientName)
 
 	clientBin, err := os.Create(clientName)
 	if err != nil {
@@ -142,5 +146,6 @@ func downloadClient(clientName string) error {
 	if err := clientBin.Close(); err != nil {
 		return err
 	}
+	log.Println("download complete")
 	return nil
 }

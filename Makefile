@@ -7,7 +7,7 @@ ASSETDIR=$(CLIENTDIR)/assets
 ASSETS := $(shell find $(SOURCEDIR)/client/assets -name assets.go -prune -o -print)
 OUTPUTDIR := $(SOURCEDIR)/bin
 
-SERVERADDR := localhost
+SERVERADDR := localhost:8080
 
 CLIENTSOURCES := $(shell find $(CLIENTDIR) $(SHAREDDIR) -name '*.go') $(ASSETDIR)/assets.go
 SERVERSOURCES := $(shell find $(SERVERDIR) $(SHAREDDIR) -name '*.go')

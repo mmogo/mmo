@@ -52,7 +52,7 @@ func (s *mmoServer) start(protocol string, port int, errc chan error) error {
 		if _, err := io.Copy(h, f); err != nil {
 			return err
 		}
-		clientChecksums[client] = string(h.Sum(nil))
+		clientChecksums[client] = fmt.Sprintf("%x", h.Sum(nil))
 		log.Printf("serving client: %s", client)
 	}
 

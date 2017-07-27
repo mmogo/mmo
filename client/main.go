@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "image/png"
+	"os"
 
 	"flag"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
+	"github.com/mmogo/mmo/client/popup"
 	"github.com/mmogo/mmo/shared"
 	"github.com/xtaci/smux"
 	"golang.org/x/image/colornames"
@@ -162,15 +164,17 @@ func run(protocol, addr, id string) error {
 		g.facing = DOWN
 	}
 	g.action = shared.A_WALK
-	go func() {
+	exit := make(chan error)
+	go func(exitchan chan error) {
 		for {
 			err := <-g.errc
 			if shared.IsFatal(err) {
-				log.Fatal(err)
+				exitchan <- err
+				return
 			}
 			log.Printf("Non-fatal Error: %v", err)
 		}
-	}()
+	}(exit)
 	camPos := pixel.ZV
 	playerText := text.New(pixel.ZV, atlas)
 	for !win.Closed() {
@@ -245,6 +249,15 @@ func run(protocol, addr, id string) error {
 		win.Update()
 
 		fps++
+
+		select {
+		default:
+		case err := <-exit:
+			win.Destroy()
+			popup.Error(err)
+			os.Exit(111)
+		}
+
 		select {
 		default:
 		case <-ping:
