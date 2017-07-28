@@ -22,7 +22,7 @@ const (
 	maxBufferedUpdates  = 30
 	maxBufferedRequests = 30
 
-	tickTime = time.Second / 2 //10 updates per sec
+	tickTime = time.Second / 10 //10 updates per sec
 
 	speechDisplayDuration = time.Second * 5
 )
@@ -43,6 +43,7 @@ type client struct {
 	win             *pixelgl.Window
 	playerID        string
 	world           *shared.World
+	pongs           chan *shared.Pong
 	updates         chan *shared.Update
 	predictions     chan *shared.Update
 	requests        chan *shared.Request
@@ -68,19 +69,14 @@ func newClient(id string, conn net.Conn, win *pixelgl.Window, world *shared.Worl
 		inProcessor:  newInputProcessor(win, requests, screen2Map, &cam),
 		reqProcessor: newRequestManager(id, requests, predictions, conn),
 		errc:         make(chan error),
+		pongs:        make(chan *shared.Pong),
 	}
 }
 
 func (c *client) start() {
 	go c.readUpdates()
 	go c.processUpdates()
-	go func() {
-		for {
-			if err := c.reqProcessor.processPending(); err != nil {
-				c.errc <- err
-			}
-		}
-	}()
+	go c.reqProcessor.processPending(c.errc)
 	go c.handleErrors()
 	go c.stepWorld()
 
@@ -109,6 +105,9 @@ func (c *client) readUpdates() {
 		if msg.Error != nil {
 			return fmt.Errorf("server returned an error: %v", msg.Error.Message)
 		}
+		if msg.Pong != nil {
+			go func() { c.pongs <- msg.Pong }()
+		}
 		if msg.Update != nil {
 			c.updates <- msg.Update
 		}
@@ -122,13 +121,33 @@ func (c *client) readUpdates() {
 	}
 }
 
+func (c *client) latency() time.Duration {
+	start := time.Now()
+	shared.SendMessage(&shared.Message{Ping: &shared.Ping{}}, c.conn)
+	select {
+	case <-time.After(time.Second):
+		c.errc <- fmt.Errorf("timed out waiting for pong")
+	case <-c.pongs:
+	}
+	return time.Since(start)
+}
+
 func (c *client) processUpdates() {
 	for {
 		select {
 		//authoritative, server-sent
 		case update := <-c.updates:
-			c.world = c.world.Before(update.Processed)
-			c.bufferedUpdates = c.bufferedUpdates.From(update.Processed)
+			processed := update.Processed.Add(c.latency() / 2)
+			// TODO: evaluate whether we should do this rollback of state
+			// right now it makes things jittery and adds nothing useful
+			if false {
+				bef := c.world.Before(processed)
+				if bef != c.world {
+					log.Printf("stepping back to world at %v", processed)
+				}
+				c.world = bef
+			}
+			c.bufferedUpdates = c.bufferedUpdates.From(processed)
 			if err := c.world.ApplyUpdates(update); err != nil {
 				c.errc <- err
 			}
@@ -136,7 +155,9 @@ func (c *client) processUpdates() {
 				c.errc <- err
 			}
 		case prediction := <-c.predictions:
-			c.world.ApplyUpdates(prediction)
+			if false {
+				c.world.ApplyUpdates(prediction)
+			}
 		case processed := <-c.world.ProcessedUpdates():
 			c.bufferedUpdates.Insert(processed)
 		}
@@ -208,7 +229,10 @@ func (c *client) render() {
 		var mappedPos pixel.Vec
 
 		lerpTime += dt
-		LerpWorld(prev, c.world, (lerpTime/c.world.Updated.Sub(prev.Updated)).Seconds()).ForEach(func(player *shared.Player) {
+		//t := time.Since(prev.Updated).Seconds() / c.world.Updated.Sub(prev.Updated).Seconds()
+		t := shared.Clamp(lerpTime.Seconds()/c.world.Updated.Sub(prev.Updated).Seconds(), 0, 1)
+		//log.Printf("lerpin thru time: %v", t)
+		LerpWorld(prev, c.world, t).ForEach(func(player *shared.Player) {
 			if !player.Active {
 				return
 			}

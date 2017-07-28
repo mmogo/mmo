@@ -18,7 +18,7 @@ type projectionFunc func(vec pixel.Vec) pixel.Vec
 
 // LerpWorld lineraly interpolates between two instances of world
 func LerpWorld(w1, w2 *shared.World, t float64) *shared.World {
-	lerpedWorld := w1 //.DeepCopy()
+	lerpedWorld := w1.DeepCopy()
 	// it's ok to modify lerpedWorld here
 	// trust me
 	lerpedWorld.ForEach(func(p *shared.Player) {

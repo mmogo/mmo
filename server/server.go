@@ -169,9 +169,12 @@ func (mgr *updateManager) startClientLoop(id string) error {
 			return nil
 		}
 		log.Printf("recv: %s\n%s", msg, id)
-		if msg.Request != nil {
+		switch {
+		case msg.Request != nil:
 			cli.requests <- msg.Request
-		} else {
+		case msg.Ping != nil:
+			shared.SendMessage(&shared.Message{Pong: &shared.Pong{}}, cli.conn)
+		default:
 			log.Printf("invalid message from client: %s", msg)
 		}
 	}

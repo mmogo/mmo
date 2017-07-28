@@ -52,6 +52,7 @@ func (w *World) DeepCopy() *World {
 	for id, player := range w.Players {
 		cpy.Players[id] = player.DeepCopy()
 	}
+	cpy.Updated = w.Updated
 	return cpy
 }
 
@@ -124,7 +125,8 @@ func (w *World) Trim(t time.Time) {
 	trimFrom := w.Before(t)
 	prev := w.previous
 	next := w
-	for prev != nil {
+	// always keep one older snapshot
+	for prev.Prev() != nil {
 		if prev == trimFrom {
 			next.previous = nil
 		}
@@ -155,9 +157,11 @@ func (w *World) Step(dt time.Duration) (err error) {
 	defer w.playersLock.Unlock()
 	for id, player := range w.Players {
 		// update player positions based on speed and destination
-		if !WithinRange(player.Destination, player.Position, 1) {
+		if !WithinRange(player.Destination, player.Position, 0.5) {
 			// TODO change this to use astar pathing
-			newPos := RoundVec(player.Position.Add(player.Destination.Sub(player.Position).Unit().Scaled(player.Speed*dt.Seconds())), 0)
+			//newPos := RoundVec(player.Position.Add(player.Destination.Sub(player.Position).Unit().Scaled(player.Speed*dt.Seconds())), 2)
+			newPos := player.Position.Add(player.Destination.Sub(player.Position).Unit().Scaled(player.Speed * dt.Seconds()))
+			//newPos := player.Destination
 			//check collisions
 			var collisionFound bool
 			hitbox := RectFromCenter(newPos, player.Size.X, player.Size.Y)
@@ -176,6 +180,7 @@ func (w *World) Step(dt time.Duration) (err error) {
 				continue
 			}
 			player.Position = newPos
+			log.Printf("player updated to: %#v", player)
 			// on new player position, send internal update
 			w.finishUpdate(&Update{PlayerPosition: &PlayerPosition{ID: player.ID, Position: newPos}})
 		}
@@ -233,6 +238,7 @@ func (w *World) updateDestination(dest *PlayerDestination) error {
 		return err
 	}
 	player.Destination = dest.Destination
+	log.Printf("NEW PLAYER DESTINATION REQUESTED: %v", player.Destination)
 	return nil
 }
 

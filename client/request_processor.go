@@ -26,19 +26,15 @@ func newRequestManager(playerID string, pendingRequests <-chan *shared.Request, 
 	}
 }
 
-func (reqProcessor *requestProcessor) processPending() error {
-requestLoop:
+func (reqProcessor *requestProcessor) processPending(errc chan error) {
 	for {
 		select {
-		default:
-			break requestLoop
 		case req := <-reqProcessor.pendingRequests:
 			if err := reqProcessor.handleRequest(req); err != nil {
-				log.Printf("Error handling player request %#v: %v", req, err)
+				errc <- fmt.Errorf("Error handling player request %#v: %v", req, err)
 			}
 		}
 	}
-	return nil
 }
 
 func (reqProcessor *requestProcessor) handleRequest(req *shared.Request) error {

@@ -8,6 +8,8 @@ import (
 )
 
 type Message struct {
+	Ping    *Ping    `,omitempty`
+	Pong    *Pong    `,omitempty`
 	Request *Request `,omitempty`
 	Update  *Update  `,omitempty`
 	Error   *Error   `,omitempty`
@@ -36,6 +38,10 @@ type Error struct {
 type ConnectRequest struct {
 	ID string
 }
+
+type Ping struct{}
+
+type Pong struct{}
 
 type MoveRequest struct {
 	Destination pixel.Vec
