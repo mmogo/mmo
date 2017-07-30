@@ -25,6 +25,10 @@ var confFile = flag.String("conf", "login.txt", "login config file")
 var protocol = flag.String("protocol", "udp", fmt.Sprintf("network protocol to use."))
 var out io.Writer
 
+func init() {
+	log.SetFlags(log.Lmicroseconds | log.Lshortfile)
+}
+
 func main() {
 	flag.Parse()
 	logFile, err := os.OpenFile("game.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
@@ -97,7 +101,7 @@ func runClient(clientName string) error {
 	}
 	cmd := exec.Command(filepath.Join(cwd, clientName), "--addr", *addr, "--id", *playerID, "--protocol", *protocol)
 	if err := cmd.Run(); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	return nil
 }

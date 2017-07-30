@@ -8,6 +8,7 @@ import (
 	"github.com/mmogo/gxui/gxfont"
 	"github.com/mmogo/gxui/themes/basic"
 	"github.com/mmogo/gxui/themes/dark"
+	"github.com/mmogo/popup"
 )
 
 var errtext string
@@ -75,7 +76,10 @@ func patcherApp(driver gxui.Driver) {
 		*addr = addrbox.Text()
 		*playerID = idbox.Text()
 		window.Close()
-		runClient(clientName)
+		if err := runClient(clientName); err != nil {
+			popup.Error(err)
+			log.Fatal(err)
+		}
 	})
 
 	splitter.AddChild(downloadBtn)
