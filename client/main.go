@@ -254,6 +254,7 @@ func run(protocol, addr, id string) error {
 		default:
 		case err := <-exit:
 			win.Destroy()
+			log.Println(err)
 			popup.Error(err)
 			os.Exit(111)
 		}
