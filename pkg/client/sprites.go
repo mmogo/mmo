@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"bytes"
@@ -7,8 +7,8 @@ import (
 
 	"github.com/faiface/pixel"
 	"github.com/ilackarms/pkg/errors"
-	"github.com/mmogo/mmo/client/assets"
-	"github.com/mmogo/mmo/shared"
+	"github.com/mmogo/mmo/pkg/assets"
+	"github.com/mmogo/mmo/pkg/shared"
 )
 
 func init() {

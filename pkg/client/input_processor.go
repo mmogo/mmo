@@ -1,11 +1,11 @@
-package main
+package client
 
 import (
 	"log"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
-	"github.com/mmogo/mmo/shared"
+	"github.com/mmogo/mmo/pkg/shared"
 )
 
 type inputCache struct {

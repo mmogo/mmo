@@ -106,7 +106,7 @@ func spritesGrassPng() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "sprites/grass.png", size: 10903, mode: os.FileMode(436), modTime: time.Unix(1500222020, 0)}
+	info := bindataFileInfo{name: "sprites/grass.png", size: 10903, mode: os.FileMode(436), modTime: time.Unix(1500222459, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

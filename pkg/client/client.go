@@ -1,7 +1,8 @@
-package main
+package client
 
 import (
 	"fmt"
+	"image/color"
 	"math"
 	"net"
 	"time"
@@ -11,12 +12,21 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
 	"github.com/ilackarms/pkg/errors"
-	"github.com/mmogo/mmo/shared"
+	"github.com/mmogo/mmo/pkg/shared"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
 )
 
 const (
+	UP        = shared.UP
+	DOWN      = shared.DOWN
+	LEFT      = shared.LEFT
+	RIGHT     = shared.RIGHT
+	UPLEFT    = shared.UPLEFT
+	UPRIGHT   = shared.UPRIGHT
+	DOWNLEFT  = shared.DOWNLEFT
+	DOWNRIGHT = shared.DOWNRIGHT
+
 	gameScale = 64.0
 
 	maxBufferedUpdates  = 30
@@ -53,7 +63,7 @@ type client struct {
 	bufferedUpdates UpdateBuffer
 }
 
-func newClient(id string, conn net.Conn, win *pixelgl.Window, world *shared.World) *client {
+func NewClient(id string, conn net.Conn, win *pixelgl.Window, world *shared.World) *client {
 	requests := make(chan *shared.Request, maxBufferedRequests)
 	updates := make(chan *shared.Update, maxBufferedUpdates)
 	predictions := make(chan *shared.Update, maxBufferedUpdates)
@@ -73,7 +83,7 @@ func newClient(id string, conn net.Conn, win *pixelgl.Window, world *shared.Worl
 	}
 }
 
-func (c *client) start() {
+func (c *client) Run() {
 	go c.readUpdates()
 	go c.processUpdates()
 	go c.reqProcessor.processPending(c.errc)
@@ -336,4 +346,14 @@ func (c *client) loadDrawables() (*renderData, error) {
 		batches:   batches,
 		txt:       txt,
 	}, nil
+}
+
+func stringToColor(str string) color.Color {
+	colornum := 0
+	for _, s := range str {
+		colornum += int(s)
+	}
+	all := len(colornames.Names)
+	name := colornames.Names[colornum%all]
+	return colornames.Map[name]
 }

@@ -1,9 +1,9 @@
-package main
+package client
 
 import (
 	"time"
 
-	"github.com/mmogo/mmo/shared"
+	"github.com/mmogo/mmo/pkg/shared"
 )
 
 // updatebuffer is a time-sorted slice of updates

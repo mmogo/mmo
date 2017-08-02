@@ -1,9 +1,9 @@
-package main
+package server
 
 import (
 	"net"
 
-	"github.com/mmogo/mmo/shared"
+	"github.com/mmogo/mmo/pkg/shared"
 )
 
 // the server's wrapper for a Player object

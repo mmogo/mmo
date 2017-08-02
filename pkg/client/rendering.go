@@ -1,10 +1,10 @@
-package main
+package client
 
 import (
 	"image/color"
 
 	"github.com/faiface/pixel"
-	"github.com/mmogo/mmo/shared"
+	"github.com/mmogo/mmo/pkg/shared"
 )
 
 type drawable interface {

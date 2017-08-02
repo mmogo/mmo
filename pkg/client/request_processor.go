@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"net"
 
 	"github.com/ilackarms/pkg/errors"
-	"github.com/mmogo/mmo/shared"
+	"github.com/mmogo/mmo/pkg/shared"
 )
 
 type requestProcessor struct {

@@ -1,36 +1,41 @@
-SOURCEDIR=.
-SHAREDDIR=$(SOURCEDIR)/shared
-CLIENTDIR=$(SOURCEDIR)/client
-SERVERDIR=$(SOURCEDIR)/server
-PATCHERDIR=$(SOURCEDIR)/patcher
-ASSETDIR=$(CLIENTDIR)/assets
-ASSETS := $(shell find $(SOURCEDIR)/client/assets -name assets.go -prune -o -print)
+SOURCEDIR=$(shell pwd)
+
+CMDDIR=$(SOURCEDIR)/cmd
+CLIENTDIR=$(CMDDIR)/client
+SERVERDIR=$(CMDDIR)/server
+PATCHERDIR=$(CMDDIR)/patcher
+
+PKGDIR=$(SOURCEDIR)/pkg
+SHAREDDIR=$(PKGDIR)/shared
+
+ASSETDIR=$(SOURCEDIR)/assets
+ASSETS := $(shell find $(ASSETDIR))
+ASSETFILE := $(PKGDIR)/assets/assets.go
+
 OUTPUTDIR := $(SOURCEDIR)/bin
 
-SERVERADDR := localhost
-
-CLIENTSOURCES := $(shell find $(CLIENTDIR) $(SHAREDDIR) -name '*.go') $(ASSETDIR)/assets.go
+CLIENTSOURCES := $(shell find $(CLIENTDIR) $(SHAREDDIR) -name '*.go') $(ASSETFILE)
 SERVERSOURCES := $(shell find $(SERVERDIR) $(SHAREDDIR) -name '*.go')
 PATCHERSOURCES := $(shell find $(PATCHERDIR) -name '*.go')
 
 IMAGE=ilackarms/xgo-latest
 
-default: $(ASSETDIR)/assets.go linux
+default: linux
 
-all: $(ASSETDIR)/assets.go linux windows darwin
+all: linux windows darwin
 
 linux: $(OUTPUTDIR)/patcher-linux-amd64 \
        $(OUTPUTDIR)/server-linux-amd64 \
        $(OUTPUTDIR)/client-linux-amd64 \
-       $(OUTPUTDIR)/login.txt
+       $(ASSETFILE)
 
 windows: $(OUTPUTDIR)/client-windows-4.0-amd64.exe \
          $(OUTPUTDIR)/patcher-windows-4.0-amd64.exe	\
-         $(OUTPUTDIR)/login.txt
+         $(ASSETFILE)
 
 darwin: $(OUTPUTDIR)/client-darwin-10.6-amd64 \
 	    $(OUTPUTDIR)/patcher-darwin-10.6-amd64 \
-		$(OUTPUTDIR)/login.txt
+		$(ASSETFILE)
 
 $(OUTPUTDIR)/patcher-linux-amd64: $(PATCHERSOURCES)
 	mkdir -p $(OUTPUTDIR)
@@ -40,16 +45,15 @@ $(OUTPUTDIR)/patcher-linux-amd64: $(PATCHERSOURCES)
 $(OUTPUTDIR)/server-linux-amd64: $(SERVERSOURCES)
 	mkdir -p $(OUTPUTDIR)
 	cd $(SERVERDIR) && \
-	go build -o ../$@ .
+	go build -o $@ .
 
 $(OUTPUTDIR)/client-linux-amd64: $(CLIENTSOURCES)
 	mkdir -p $(OUTPUTDIR)
 	cd $(CLIENTDIR) && \
-	go build -o ../$@ .
+	go build -o $@ .
 
-$(ASSETDIR)/assets.go: $(ASSETS)
-	cd $(CLIENTDIR) && \
-	go-bindata -o assets/assets.go -pkg assets -prefix assets/ assets/...
+$(ASSETFILE) : $(ASSETS)
+	go-bindata -o $(ASSETFILE) -pkg assets -prefix $(ASSETDIR) $(ASSETDIR)/...
 
 $(OUTPUTDIR)/client-windows-4.0-amd64.exe: $(CLIENTSOURCES)
 	xgo -image $(IMAGE) -dest=bin -targets=windows/amd64 -pkg ./client .
@@ -62,9 +66,6 @@ $(OUTPUTDIR)/client-darwin-10.6-amd64: $(CLIENTSOURCES)
 
 $(OUTPUTDIR)/patcher-darwin-10.6-amd64: $(PATCHERSOURCES)
 	xgo -image $(IMAGE) -dest=bin -targets=darwin/amd64 -pkg ./patcher .
-
-$(OUTPUTDIR)/login.txt:
-	echo "server=$(SERVERADDR)" > $@
 
 .PHONY: clean
 

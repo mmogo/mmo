@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"crypto/md5"
@@ -12,22 +12,29 @@ import (
 	"time"
 
 	"github.com/ilackarms/pkg/errors"
-	"github.com/mmogo/mmo/shared"
+	"github.com/mmogo/mmo/pkg/shared"
 	"github.com/soheilhy/cmux"
 	"github.com/xtaci/smux"
+)
+
+const (
+	ticksPerSecond = 10
+	tickTime       = time.Second / ticksPerSecond
+
+	bufferedMessageLimit = 60
 )
 
 type mmoServer struct {
 	mgr *updateManager
 }
 
-func newMMOServer() *mmoServer {
+func NewMMOServer() *mmoServer {
 	return &mmoServer{
 		mgr: newUpdateManager(),
 	}
 }
 
-func (s *mmoServer) start(protocol string, port int, errc chan error) error {
+func (s *mmoServer) Run(protocol string, port int, errc chan error) error {
 	laddr := fmt.Sprintf(":%v", port)
 	//get client checksums
 	clientChecksums := map[string]string{

@@ -5,7 +5,6 @@ import (
 
 	"flag"
 	"fmt"
-	"image/color"
 	"log"
 	"net"
 
@@ -16,20 +15,9 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/ilackarms/pkg/errors"
-	"github.com/mmogo/mmo/shared"
+	"github.com/mmogo/mmo/pkg/client"
+	"github.com/mmogo/mmo/pkg/shared"
 	"github.com/xtaci/smux"
-	"golang.org/x/image/colornames"
-)
-
-const (
-	UP        = shared.UP
-	DOWN      = shared.DOWN
-	LEFT      = shared.LEFT
-	RIGHT     = shared.RIGHT
-	UPLEFT    = shared.UPLEFT
-	UPRIGHT   = shared.UPRIGHT
-	DOWNLEFT  = shared.DOWNLEFT
-	DOWNRIGHT = shared.DOWNRIGHT
 )
 
 func init() {
@@ -96,7 +84,7 @@ func run(protocol, addr, id string) error {
 	}
 
 	//start client
-	newClient(id, conn, win, msg.Update.WorldState.World).start()
+	client.NewClient(id, conn, win, msg.Update.WorldState.World).Run()
 
 	return errors.New("client exited for unknown reason", nil)
 }
@@ -126,14 +114,4 @@ func dialServer(protocol, addr, id string) (net.Conn, error) {
 		return nil, err
 	}
 	return conn, nil
-}
-
-func stringToColor(str string) color.Color {
-	colornum := 0
-	for _, s := range str {
-		colornum += int(s)
-	}
-	all := len(colornames.Names)
-	name := colornames.Names[colornum%all]
-	return colornames.Map[name]
 }
