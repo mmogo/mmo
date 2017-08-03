@@ -6,6 +6,7 @@ import (
 	"image/color"
 
 	"github.com/faiface/pixel"
+	"github.com/ilackarms/pkg/errors"
 	"github.com/mmogo/mmo/client/assets"
 	"github.com/mmogo/mmo/shared"
 )
@@ -47,7 +48,10 @@ func (s *Sprite) Animate(dt float64, facing shared.Direction, action shared.Acti
 
 }
 
-func (s *Sprite) Draw(target pixel.Target, matrix pixel.Matrix, color color.Color) {
+func (s *Sprite) Draw(target pixel.Target, matrix pixel.Matrix) {
+	s.DrawColorMask(target, matrix, nil)
+}
+func (s *Sprite) DrawColorMask(target pixel.Target, matrix pixel.Matrix, color color.Color) {
 	if s.Sprite == nil {
 		s.Sprite = pixel.NewSprite(nil, pixel.Rect{})
 	}
@@ -154,32 +158,33 @@ func atlasL() Atlas {
 	return m
 }
 
-// LoadSpriteSheet returns an animated sprite derived from image path and atlas function
-func LoadSpriteSheet(path string, atlas Atlas) (*Sprite, error) {
-	pic, err := loadPicture(path)
+// loadSpriteSheet returns an animated sprite derived from image path and atlas function
+func loadSpriteSheet(path string, atlas Atlas) (*Sprite, error) {
+	image, err := loadImage(path)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("loading image", err)
 	}
-	s := new(Sprite)
-	s.Frames = AtlasL
-	if atlas != nil {
-		s.Frames = atlas
+	frames := atlas
+	if frames == nil {
+		frames = AtlasL
 	}
-	s.Sprite = pixel.NewSprite(nil, pixel.Rect{})
-	s.Picture = pic
+	s := &Sprite{
+		Frames:  frames,
+		Sprite:  pixel.NewSprite(nil, pixel.Rect{}),
+		Picture: image,
+	}
 	return s, nil
 }
 
-// loadPicture from assets
-func loadPicture(path string) (pixel.Picture, error) {
+// loadImage from assets
+func loadImage(path string) (pixel.Picture, error) {
 	contents, err := assets.Asset(path)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("loading asset from "+path, err)
 	}
-	file := bytes.NewReader(contents)
-	img, _, err := image.Decode(file)
+	img, _, err := image.Decode(bytes.NewReader(contents))
 	if err != nil {
-		return nil, err
+		return nil, errors.New("decoding png image", err)
 	}
 	return pixel.PictureDataFromImage(img), nil
 }
