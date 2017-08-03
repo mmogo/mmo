@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log"
 
+	"time"
+
 	"github.com/mmogo/mmo/shared"
 )
 
@@ -18,9 +20,9 @@ func init() {
 
 const (
 	ticksPerSecond = 10
-	tickTime       = 1.0 / ticksPerSecond
+	tickTime       = time.Second / ticksPerSecond
 
-	messagePerTickLimit = 60
+	bufferedMessageLimit = 60
 )
 
 func main() {

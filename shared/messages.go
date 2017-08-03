@@ -12,17 +12,21 @@ import (
 )
 
 type Message struct {
-	Sent    time.Time `,omitempty`
-	Request *Request  `,omitempty`
-	Update  *Update   `,omitempty`
-	Error   *Error    `,omitempty`
+	Ping    *Ping    `,omitempty`
+	Pong    *Pong    `,omitempty`
+	Request *Request `,omitempty`
+	Update  *Update  `,omitempty`
+	Error   *Error   `,omitempty`
 }
 
 type Update struct {
-	PlayerMoved        *PlayerMoved        `,omitempty`
-	PlayerSpoke        *PlayerSpoke        `,omitempty`
-	WorldState         *WorldState         `,omitempty`
-	PlayerDisconnected *PlayerDisconnected `,omitempty`
+	AddPlayer         *AddPlayer         `,omitempty`
+	PlayerDestination *PlayerDestination `,omitempty`
+	PlayerPosition    *PlayerPosition    `,omitempty`
+	PlayerSpoke       *PlayerSpoke       `,omitempty`
+	WorldState        *WorldState        `,omitempty`
+	RemovePlayer      *RemovePlayer      `,omitempty`
+	Processed         time.Time
 }
 
 type Request struct {
@@ -39,19 +43,31 @@ type ConnectRequest struct {
 	ID string
 }
 
+type Ping struct{}
+
+type Pong struct{}
+
 type MoveRequest struct {
-	Direction pixel.Vec
-	Created   time.Time
+	Destination pixel.Vec
 }
 
 type SpeakRequest struct {
 	Text string
 }
 
-type PlayerMoved struct {
+type AddPlayer struct {
+	ID       string
+	Position pixel.Vec
+}
+
+type PlayerDestination struct {
 	ID          string
-	NewPosition pixel.Vec
-	RequestTime time.Time
+	Destination pixel.Vec
+}
+
+type PlayerPosition struct {
+	ID       string
+	Position pixel.Vec
 }
 
 type PlayerSpoke struct {
@@ -60,10 +76,10 @@ type PlayerSpoke struct {
 }
 
 type WorldState struct {
-	Players []*Player
+	World *World
 }
 
-type PlayerDisconnected struct {
+type RemovePlayer struct {
 	ID string
 }
 
@@ -79,16 +95,20 @@ func (m Message) String() string {
 		return m.Update.String()
 	}
 
-	if !m.Sent.IsZero() {
-		return fmt.Sprintf("Ping: %s", m.Sent)
-	}
-
 	return "empty packet"
 }
 
 func (u Update) String() string {
-	if u.PlayerMoved != nil {
-		return fmt.Sprintf("PlayerMoved: %s: %s", u.PlayerMoved.ID, u.PlayerMoved.NewPosition)
+	if u.AddPlayer != nil {
+		return fmt.Sprintf("AddPlayer: %s", u.AddPlayer.ID)
+	}
+
+	if u.PlayerPosition != nil {
+		return fmt.Sprintf("PlayerPosition: %s: %s", u.PlayerPosition.ID, u.PlayerPosition.Position)
+	}
+
+	if u.PlayerDestination != nil {
+		return fmt.Sprintf("PlayerDestination: %s: %s", u.PlayerDestination.ID, u.PlayerDestination.Destination)
 	}
 
 	if u.PlayerSpoke != nil {
@@ -96,15 +116,13 @@ func (u Update) String() string {
 	}
 
 	if u.WorldState != nil {
-
-		return fmt.Sprintf("WorldState: %v players", len(u.WorldState.Players))
+		return fmt.Sprintf("WorldState: %#v", u.WorldState.World)
 	}
-	if u.PlayerDisconnected != nil {
-		return fmt.Sprintf("PlayerDisconnected: %s", u.PlayerDisconnected)
+	if u.RemovePlayer != nil {
+		return fmt.Sprintf("PlayerDisconnected: %s", u.RemovePlayer)
 	}
 
 	return "empty update"
-
 }
 
 func (r Request) String() string {
@@ -112,7 +130,7 @@ func (r Request) String() string {
 		return fmt.Sprintf("ConnectRequest: %v", r.ConnectRequest.ID)
 	}
 	if r.MoveRequest != nil {
-		return fmt.Sprintf("MoveRequest: %s", r.MoveRequest.Direction)
+		return fmt.Sprintf("MoveRequest: %s", r.MoveRequest.Destination)
 	}
 	if r.SpeakRequest != nil {
 		return fmt.Sprintf("SpeakRequest: %s", r.SpeakRequest.Text)

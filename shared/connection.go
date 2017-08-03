@@ -10,7 +10,6 @@ import (
 	"io"
 	"math"
 	"net"
-	"time"
 
 	"github.com/xtaci/kcp-go"
 	"gopkg.in/mgo.v2/bson"
@@ -28,7 +27,7 @@ func Dial(protocol, raddr string) (net.Conn, error) {
 	case ProtocolTCP:
 		return net.Dial("tcp", raddr)
 	}
-	return nil, fmt.Errorf("invalid protcol %s. select from available: %s | %s", ProtocolUDP, ProtocolTCP)
+	return nil, fmt.Errorf("invalid protcol %s. select from available: %s | %s", protocol, ProtocolUDP, ProtocolTCP)
 }
 
 func Listen(protocol, laddr string) (net.Listener, error) {
@@ -41,12 +40,7 @@ func Listen(protocol, laddr string) (net.Listener, error) {
 	return nil, fmt.Errorf("invalid protcol %s. select from available: %s | %s ", ProtocolUDP, ProtocolTCP)
 }
 
-func GetMessage(r io.Reader, withDeadline ...bool) (*Message, error) {
-	if len(withDeadline) > 0 && withDeadline[0] {
-		if conn, ok := r.(net.Conn); ok {
-			conn.SetDeadline(time.Now().Add(time.Second * 3))
-		}
-	}
+func GetMessage(r io.Reader) (*Message, error) {
 	raw, err := read(r)
 	if err != nil {
 		return nil, err
@@ -58,13 +52,7 @@ func GetMessage(r io.Reader, withDeadline ...bool) (*Message, error) {
 	return &msg, nil
 }
 
-func SendMessage(msg *Message, w io.Writer, withDeadline ...bool) error {
-	if len(withDeadline) > 0 && withDeadline[0] {
-		if conn, ok := w.(net.Conn); ok {
-			conn.SetDeadline(time.Now().Add(time.Second * 3))
-		}
-	}
-	msg.Sent = time.Now()
+func SendMessage(msg *Message, w io.Writer) error {
 	data, err := Encode(msg)
 	if err != nil {
 		return err

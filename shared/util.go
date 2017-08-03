@@ -17,3 +17,14 @@ func IsoToMap(iso pixel.Vec) pixel.Vec {
 	y := ((2 * iso.Y) + iso.X) / 2
 	return pixel.Vec{x, y}
 }
+
+// Clamps v between min and max
+func Clamp(v, min, max float64) float64 {
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
+}
