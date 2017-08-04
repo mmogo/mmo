@@ -1,4 +1,4 @@
-package client
+package full
 
 import (
 	"fmt"
@@ -63,7 +63,7 @@ type client struct {
 	bufferedUpdates UpdateBuffer
 }
 
-func NewClient(id string, conn net.Conn, win *pixelgl.Window, world *shared.World) *client {
+func NewClient(id string, conn net.Conn, world *shared.World) *client {
 	requests := make(chan *shared.Request, maxBufferedRequests)
 	updates := make(chan *shared.Update, maxBufferedUpdates)
 	predictions := make(chan *shared.Update, maxBufferedUpdates)
@@ -71,19 +71,37 @@ func NewClient(id string, conn net.Conn, win *pixelgl.Window, world *shared.Worl
 	return &client{
 		conn:         conn,
 		playerID:     id,
-		win:          win,
 		world:        world,
 		requests:     requests,
 		updates:      updates,
 		predictions:  predictions,
-		inProcessor:  newInputProcessor(win, requests, screen2Map, &cam),
 		reqProcessor: newRequestManager(id, requests, predictions, conn),
 		errc:         make(chan error),
 		pongs:        make(chan *shared.Pong),
 	}
 }
 
+func (c *client) Init() error {
+	// start window
+	cfg := pixelgl.WindowConfig{
+		Title:  "loading",
+		Bounds: pixel.R(0, 0, 800, 600),
+		VSync:  true,
+	}
+	win, err := pixelgl.NewWindow(cfg)
+	if err != nil {
+		return fmt.Errorf("creating window: %v", err)
+	}
+	c.win = win
+	c.inProcessor = newInputProcessor(win, c.requests, screen2Map, &cam)
+
+	return nil
+}
+
 func (c *client) Run() {
+	if c.win == nil {
+		panic("Client: Run() before Init()!")
+	}
 	go c.readUpdates()
 	go c.processUpdates()
 	go c.reqProcessor.processPending(c.errc)

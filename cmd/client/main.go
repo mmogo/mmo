@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 
 	"os"
 	"os/signal"
@@ -15,9 +14,10 @@ import (
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/ilackarms/pkg/errors"
-	"github.com/mmogo/mmo/pkg/client"
+	"github.com/mmogo/mmo/pkg/client/api"
+	"github.com/mmogo/mmo/pkg/client/debug"
+	"github.com/mmogo/mmo/pkg/client/full"
 	"github.com/mmogo/mmo/pkg/shared"
-	"github.com/xtaci/smux"
 )
 
 func init() {
@@ -28,6 +28,7 @@ func main() {
 	addr := flag.String("addr", "localhost:8080", "address of server")
 	id := flag.String("id", "", "playerid to use")
 	protocol := flag.String("protocol", "udp", fmt.Sprintf("network protocol to use. available %s | %s", shared.ProtocolTCP, shared.ProtocolUDP))
+	debugMode := flag.Bool("d", true, "run debug version of client")
 	flag.Parse()
 	if *id == "" {
 		log.Fatal("id must be provided")
@@ -50,68 +51,28 @@ func main() {
 		}
 	}()
 	pixelgl.Run(func() {
-		if err := run(*protocol, *addr, *id); err != nil {
+		if err := run(*protocol, *addr, *id, *debugMode); err != nil {
 			log.Fatal(err)
 		}
 	})
 }
 
-func run(protocol, addr, id string) error {
-	conn, err := dialServer(protocol, addr, id)
+func run(protocol, addr, id string, debugMode bool) error {
+	conn, world, err := api.Dial(protocol, addr, id)
 	if err != nil {
 		return errors.New("failed to dial server", err)
 	}
 
-	// start window
-	cfg := pixelgl.WindowConfig{
-		Title:  "loading",
-		Bounds: pixel.R(0, 0, 800, 600),
-		VSync:  true,
-	}
-	win, err := pixelgl.NewWindow(cfg)
-	if err != nil {
-		return fmt.Errorf("creating window: %v", err)
-	}
-
-	// sync with server
-	msg, err := shared.GetMessage(conn)
-	if err != nil {
-		return errors.New("failed reading message", err)
-	}
-
-	if msg.Update == nil || msg.Update.WorldState == nil || msg.Update.WorldState.World == nil {
-		return errors.New("expected Sync message on server handshake, got "+msg.String(), nil)
-	}
-
 	//start client
-	client.NewClient(id, conn, win, msg.Update.WorldState.World).Run()
+	if debugMode {
+		debug.NewClient(id, conn, world).Run()
+	} else {
+		client := full.NewClient(id, conn, world)
+		if err := client.Init(); err != nil {
+			return errors.New("failed to initialize full client", err)
+		}
+		client.Run()
+	}
 
 	return errors.New("client exited for unknown reason", nil)
-}
-
-func dialServer(protocol, addr, id string) (net.Conn, error) {
-	log.Printf("dialing %s", addr)
-	conn, err := shared.Dial(protocol, addr)
-	if err != nil {
-		return nil, err
-	}
-	session, err := smux.Client(conn, smux.DefaultConfig())
-	if err != nil {
-		return nil, err
-	}
-	stream, err := session.OpenStream()
-	if err != nil {
-		return nil, err
-	}
-	conn = stream
-
-	if err := shared.SendMessage(&shared.Message{
-		Request: &shared.Request{
-			ConnectRequest: &shared.ConnectRequest{
-				ID: id,
-			},
-		}}, conn); err != nil {
-		return nil, err
-	}
-	return conn, nil
 }
