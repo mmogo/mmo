@@ -11,8 +11,6 @@ import (
 	"os/signal"
 	"runtime/pprof"
 
-	"github.com/faiface/pixel"
-	"github.com/faiface/pixel/pixelgl"
 	"github.com/ilackarms/pkg/errors"
 	"github.com/mmogo/mmo/pkg/client/api"
 	"github.com/mmogo/mmo/pkg/client/debug"
@@ -28,7 +26,7 @@ func main() {
 	addr := flag.String("addr", "localhost:8080", "address of server")
 	id := flag.String("id", "", "playerid to use")
 	protocol := flag.String("protocol", "udp", fmt.Sprintf("network protocol to use. available %s | %s", shared.ProtocolTCP, shared.ProtocolUDP))
-	debugMode := flag.Bool("d", true, "run debug version of client")
+	debugMode := flag.Bool("d", false, "run debug version of client")
 	flag.Parse()
 	if *id == "" {
 		log.Fatal("id must be provided")
@@ -50,11 +48,8 @@ func main() {
 			log.Fatalf("detected sig: %s, shutting down", sig)
 		}
 	}()
-	pixelgl.Run(func() {
-		if err := run(*protocol, *addr, *id, *debugMode); err != nil {
-			log.Fatal(err)
-		}
-	})
+
+	log.Fatal(run(*protocol, *addr, *id, *debugMode))
 }
 
 func run(protocol, addr, id string, debugMode bool) error {
@@ -63,16 +58,18 @@ func run(protocol, addr, id string, debugMode bool) error {
 		return errors.New("failed to dial server", err)
 	}
 
+	var client api.Client
+
 	//start client
 	if debugMode {
-		debug.NewClient(id, conn, world).Run()
+		client = debug.NewClient(id, conn, world)
 	} else {
-		client := full.NewClient(id, conn, world)
-		if err := client.Init(); err != nil {
-			return errors.New("failed to initialize full client", err)
-		}
-		client.Run()
+		client = full.NewClient(id, conn, world)
 	}
+
+	log.Printf("running client %#v", client)
+
+	client.Run()
 
 	return errors.New("client exited for unknown reason", nil)
 }

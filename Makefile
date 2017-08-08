@@ -14,8 +14,8 @@ ASSETFILE := $(PKGDIR)/assets/assets.go
 
 OUTPUTDIR := $(SOURCEDIR)/bin
 
-CLIENTSOURCES := $(shell find $(CLIENTDIR) $(SHAREDDIR) -name '*.go') $(ASSETFILE)
-SERVERSOURCES := $(shell find $(SERVERDIR) $(SHAREDDIR) -name '*.go')
+CLIENTSOURCES := $(shell find $(CLIENTDIR) $(SHAREDDIR) $(PKGDIR)/client -name '*.go') $(ASSETFILE)
+SERVERSOURCES := $(shell find $(SERVERDIR) $(SHAREDDIR) $(PKGDIR)/server -name '*.go')
 PATCHERSOURCES := $(shell find $(PATCHERDIR) -name '*.go')
 
 IMAGE=ilackarms/xgo-latest
@@ -40,7 +40,7 @@ darwin: $(OUTPUTDIR)/client-darwin-10.6-amd64 \
 $(OUTPUTDIR)/patcher-linux-amd64: $(PATCHERSOURCES)
 	mkdir -p $(OUTPUTDIR)
 	cd $(PATCHERDIR) && \
-	go build -o ../$@ .
+	go build -o $@ .
 
 $(OUTPUTDIR)/server-linux-amd64: $(SERVERSOURCES)
 	mkdir -p $(OUTPUTDIR)

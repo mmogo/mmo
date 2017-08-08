@@ -81,36 +81,29 @@ func NewClient(id string, conn net.Conn, world *shared.World) *client {
 	}
 }
 
-func (c *client) Init() error {
-	// start window
-	cfg := pixelgl.WindowConfig{
-		Title:  "loading",
-		Bounds: pixel.R(0, 0, 800, 600),
-		VSync:  true,
-	}
-	win, err := pixelgl.NewWindow(cfg)
-	if err != nil {
-		return fmt.Errorf("creating window: %v", err)
-	}
-	c.win = win
-	c.inProcessor = newInputProcessor(win, c.requests, screen2Map, &cam)
-
-	return nil
-}
-
 func (c *client) Run() {
-	if c.win == nil {
-		panic("Client: Run() before Init()!")
-	}
-	go c.readUpdates()
-	go c.processUpdates()
-	go c.reqProcessor.processPending(c.errc)
-	go c.handleErrors()
-	go c.stepWorld()
+	pixelgl.Run(func() {
+		// start window
+		cfg := pixelgl.WindowConfig{
+			Title:  "loading",
+			Bounds: pixel.R(0, 0, 800, 600),
+			VSync:  true,
+		}
+		win, err := pixelgl.NewWindow(cfg)
+		if err != nil {
+			panic(fmt.Errorf("creating window: %v", err))
+		}
+		c.win = win
+		c.inProcessor = newInputProcessor(win, c.requests, screen2Map, &cam)
 
-	log.Info("client started")
+		go c.readUpdates()
+		go c.processUpdates()
+		go c.reqProcessor.processPending(c.errc)
+		go c.handleErrors()
+		go c.stepWorld()
 
-	c.render()
+		c.render()
+	})
 }
 
 func (c *client) handleErrors() {

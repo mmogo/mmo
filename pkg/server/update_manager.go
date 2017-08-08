@@ -29,7 +29,7 @@ type updateManager struct {
 
 func newUpdateManager() *updateManager {
 	return &updateManager{
-		world:            shared.NewEmptyWorld(),
+		world:            shared.NewEmptyWorld(false),
 		connectedPlayers: make(map[string]*client),
 	}
 }

@@ -28,13 +28,16 @@ type World struct {
 	Updated  time.Time
 	// processed is for updates that have been processed
 	processed chan *Update
+	// enables buffering of snapshots
+	enableSnapshots bool
 }
 
-func NewEmptyWorld() *World {
+func NewEmptyWorld(enableSnapshots bool) *World {
 	return &World{
 		Players:   make(map[string]*Player),
 		processed: make(chan *Update),
 		Updated:   time.Now(),
+		enableSnapshots: enableSnapshots,
 	}
 }
 
@@ -43,7 +46,7 @@ func (w *World) ProcessedUpdates() <-chan *Update {
 }
 
 func (w *World) DeepCopy() *World {
-	cpy := NewEmptyWorld()
+	cpy := NewEmptyWorld(w.enableSnapshots)
 	if w.previous != nil {
 		cpy.previous = w.previous.DeepCopy()
 	}
@@ -151,7 +154,9 @@ func (w *World) Keep(n int) {
 // process game-world self update
 // step wraps the previous state for rolling back
 func (w *World) Step(dt time.Duration) (err error) {
-	w.previous = w.DeepCopy()
+	if w.enableSnapshots {
+		w.previous = w.DeepCopy()
+	}
 	w.Updated = time.Now()
 	w.playersLock.Lock()
 	defer w.playersLock.Unlock()
