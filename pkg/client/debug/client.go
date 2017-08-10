@@ -117,6 +117,8 @@ func (c *client) run() {
 
 		win.Clear(colornames.Darkgray)
 
+		drawDebugCoords(win)
+
 		c.world.ForEach(func(player *shared.Player) {
 			screenPos := pixel.V(player.Position.X*gameScale, player.Position.Y*gameScale)
 			transform = pixel.IM.Moved(screenPos)
