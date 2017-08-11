@@ -1,12 +1,22 @@
 package shared
 
 import (
-	"math/rand"
-
 	"math"
+	"math/rand"
 
 	"github.com/faiface/pixel"
 )
+
+// snaps from to v1 or v2 whichever is closest
+// v1 in a tie
+func SnapTo(v1, v2, from float64) float64 {
+	d1 := math.Abs(v1 - from)
+	d2 := math.Abs(v2 - from)
+	if d2 > d1 {
+		return v2
+	}
+	return v1
+}
 
 // retuns whether or not the scalar distance between
 // v1 and v2 is <= r

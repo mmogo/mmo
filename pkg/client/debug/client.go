@@ -117,7 +117,6 @@ func (c *client) run() {
 
 		win.Clear(colornames.Darkgray)
 
-		drawDebugCoords(win)
 
 		c.world.ForEach(func(player *shared.Player) {
 			screenPos := pixel.V(player.Position.X*gameScale, player.Position.Y*gameScale)
@@ -125,6 +124,8 @@ func (c *client) run() {
 			drawText(win, txt, player.ID, screenPos)
 
 			if player.ID == c.playerID {
+				drawDebugGrid(win, player.Position)
+
 				camPosition = pixel.Lerp(camPosition, winCenter.Sub(screenPos), 1-math.Pow(1.0/128, dt.Seconds()))
 				cam := pixel.IM.Moved(camPosition)
 
