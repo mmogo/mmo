@@ -119,7 +119,7 @@ func (c *client) run() {
 
 
 		c.world.ForEach(func(player *shared.Player) {
-			screenPos := pixel.V(player.Position.X*gameScale, player.Position.Y*gameScale)
+			screenPos := map2Screen(player.Position)
 			transform = pixel.IM.Moved(screenPos)
 			drawText(win, txt, player.ID, screenPos)
 

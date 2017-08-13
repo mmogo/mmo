@@ -54,7 +54,7 @@ func tilesBatch(center pixel.Vec) *pixel.Batch {
 	imd.Push(pixel.V(gameScale, gameScale))
 	imd.Rectangle(1)
 	forEachCell(center, func(x, y float64) {
-		batch.SetMatrix(pixel.IM.Moved(pixel.V(x, y).Scaled(gameScale)))
+		batch.SetMatrix(pixel.IM.Moved(pixel.V(x-0.5, y-0.5).Scaled(gameScale)))
 		imd.Draw(batch)
 	})
 	return batch
@@ -67,7 +67,7 @@ func coordsBatch(center pixel.Vec) *pixel.Batch {
 		coords.Clear()
 		coords.Dot = coords.Orig
 		coords.WriteString(fmt.Sprintf("%v,%v", x, y))
-		coords.Draw(batch, pixel.IM.Moved(pixel.V(x+0.5, y+0.5).Scaled(gameScale)))
+		coords.Draw(batch, pixel.IM.Moved(pixel.V(x, y).Scaled(gameScale)))
 	})
 	return batch
 }
